@@ -13,6 +13,9 @@ ignoreFiles = ["\\.Rmd$", "\\.Rmarkdown$", "_files$", "_cache$"]
     name = "Prototype"
     url = "public/Prototype/"
 [[menu.main]]
+    name = "Lit Review"
+    url = "public/Litreview/"
+[[menu.main]]
     name = "Research Paper"
     url = "public/Research/"
 [[menu.main]]
