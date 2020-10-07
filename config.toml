@@ -10,8 +10,11 @@ ignoreFiles = ["\\.Rmd$", "\\.Rmarkdown$", "_files$", "_cache$"]
     post = "/:year/:month/:day/:slug/"
 
 [[menu.main]]
-    name = "Proposal"
-    url = "/Proposal/"
+    name = "Prototype"
+    url = "public/Prototype/"
+[[menu.main]]
+    name = "Research Paper"
+    url = "public/Research/"
 [[menu.main]]
     name = "GitHub"
     url = "https://github.com/rstudio/blogdown"
