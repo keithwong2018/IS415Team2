@@ -1,6 +1,6 @@
-baseurl = "https://hardcore-dubinsky-7ec57d.netlify.app"
+baseurl = "/"
 languageCode = "en-us"
-title = "IS415 Team2 Project Proposal"
+title = "A Hugo website"
 theme = "hugo-lithium"
 googleAnalytics = ""
 disqusShortname = ""
