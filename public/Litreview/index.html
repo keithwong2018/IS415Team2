@@ -11,6 +11,8 @@
     <link href='../favicon.ico' rel='icon' type='../image/x-icon'/>
     <link rel="stylesheet" href="../css/fonts.css" media="all">
     <link rel="stylesheet" href="../css/main.css" media="all">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js" integrity="sha384-B4gt1jrGC7Jh4AgTPSdUtOBvfO8shuf57BaghqFfPlYxofvL8/KUEfYiJOMMV+rV" crossorigin="anonymous"></script>
 
   </head>
   
@@ -35,16 +37,72 @@
       
     <main class="content" role="main">
       <article class="article">
-        <h1 class="article-title">Spatial analysis of nursing homes in Chile</h1>
-        <h3 class="article-title">Study Objectives: Identifying the determinants of the geographical location of nursing homes in Chile at municipality level</h3>
+        <h2>1. Spatial analysis of nursing homes in Chile</h2>
 
         <div class="article-content">
           <p>
+              <b>Study Objectives: Identifying the determinants of the geographical location of nursing homes in Chile at municipality level</b><br><br>
+              
 Our team hopes to offer a deeper insight into the distribution of the elderly population in Singapore, and how we can make elderly-essential facilities and amenities more accessible to them. These facilities include CHAS clinics, Eldercare Service Centres & Silver Infocomm Junctions. This is to ensure that the elderly is able to have access to all-rounded support. 
           </p>
         </div>
       </article>
+      
+      <hr style="height:2px;border-width:0;color:gray;background-color:gray">
+      
+      <article class="article">
+        <h2>2. Mapping the spatial disparities in urban healthcare services using taxi trajectories data </h2>
+        <div class="article-content">
+          <p>
+            <b>Study Objectives:</b><br>
+            To analyse the demand and supply of health care services and the spatial accessibility of healthcare services using the taxi trajectories data<br><br>
+
+            <b>Methodology:</b>
+            <ol>
+              <li>
+                <b>Gravity model to evaluate the relative ease of reaching the spatially distributed resource/services</b>
+              </li>
+              <ul>
+                <li>Gravity Model uses the theory that the attraction between two objects is proportional to their mass and inversely proportional to their respective distance
+                </li>
+              </ul>
+              <li><b>2-Step Floating Catchment Area Method (2SFCA)</b> 
+              </li>
+                <ul>
+                <li>Special case of gravity model developed to measure spatial accessibility
+                </li>
+                 <li>Supply: potential relative amount of population in community i served by hospital j
+                </li>
+                <li>Demand: calculation of accessibility, considering the effects of population, hospital capacity and spatial impedance (distance) 
+                </li>
+              </ul>
+              <li><b>Standardization of demand & supply using Z-score method to illustrate the status of healthcare services</b> 
+              </li>
+              <img src="../images/litreview1.png">
+              <img src="../images/litreview2.png">
+              <li><b>Learning Points:</b>
+              </li>
+              <ul>
+                <li>2-SFCA derives an Accessibility Index to determine the accessibility of services to communities, which is applicable to our study
+                </li>
+              </ul>
+              <li><b>Areas for Improvement:</b>
+              </li>
+              <ul>
+                <li>The analysis uses only taxi networks to determine the demand & accessibility of hospitals, which underrepresents the actual number of hospital visits as visitors may arrive by other modes of transport
+                </li>
+                <li>Taxi networks are unable to differentiate the specific purposes of hospital visits; each hospital arrival may not accurately represent the demand 
+                </li>
+                <li>The taxi network data is taken from only one week, which does not fully represent all hospital arrivals in a year
+                </li>               
+              </ul>
+            </ol>
+          </p>
+        </div>
+      </article>
+      <hr style="height:2px;border-width:0;color:gray;background-color:gray">
     </main>
+    
       <footer class="footer">
         <ul class="footer-links">
           <li>
