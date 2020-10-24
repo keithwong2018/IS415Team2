@@ -1,0 +1,193 @@
+---
+title: "wrangling"
+author: "Veronica Lee Xuan Hui"
+date: "10/23/2020"
+output: 
+  html_document: 
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load Packages
+```{r}
+packages = c('rgdal', 'sf', 'tmap', 'tidyverse', 'sp', 'rgeos','maptools', 'raster', 'spatstat', 'tmaptools', 'spdep')
+for (p in packages){
+  if (!require(p, character.only = T)){
+    install.packages(p)
+  }
+  library(p, character.only = T)
+}
+```
+
+## Population Data 
+```{r}
+popdata <- read_csv('data/aspatial/planning-area-subzone-age-group-sex-and-type-of-dwelling-june-2011-2019.csv')
+```
+
+```{r}
+glimpse(popdata)
+```
+
+check for NA values
+```{r}
+popdata[rowSums(is.na(popdata))!=0, ]
+```
+
+Extracting relevant data
+```{r}
+popdata2019 <- popdata %>%
+  filter(year == 2019) %>%
+  filter(age_group == "65_to_69" | age_group == "70_to_74" | age_group == '75_to_79' | age_group == '80_to_84' | age_group == '85_to_89' | age_group == '90_and_over') %>%
+  group_by(planning_area, subzone, age_group) %>%
+  summarise(elderly_count = sum(resident_count)) %>%
+  ungroup() %>%
+  spread(age_group, elderly_count)
+popdata2019
+```
+
+
+## Eldercare 
+```{r}
+eldercare_sf <- st_read(dsn='data/geospatial', layer='ELDERCARE')
+eldercare_sf
+```
+
+Check for NA values 
+```{r}
+eldercare_sf[rowSums(is.na(eldercare_sf))!=0, ]
+```
+all rows have NA values
+
+
+Check for projection
+```{r}
+st_crs(eldercare_sf)
+```
+
+Assign EPSG
+```{r}
+eldercare_sf <- st_transform(eldercare_sf, 3414)
+```
+
+```{r}
+st_crs(eldercare_sf)
+```
+
+Check for validity - data is valid
+```{r}
+test <- st_is_valid(eldercare_sf)
+length(which(test==FALSE))
+```
+
+Convert sf to sp
+```{r}
+eldercare_sp <- as_Spatial(eldercare_sf)
+```
+
+
+## Silver Infocomm
+```{r}
+infocomm_sf <- st_read(dsn='data/geospatial', layer='SILVERINFOCOMM')
+```
+
+```{r}
+glimpse(infocomm_sf)
+```
+
+
+Check for projection
+```{r}
+st_crs(infocomm_sf)
+```
+
+Assign EPSG
+```{r}
+infocomm_sf <- st_transform(infocomm_sf, 3414)
+```
+
+```{r}
+st_crs(infocomm_sf)
+```
+
+Check for validity - data is valid
+```{r}
+test <- st_is_valid(infocomm_sf)
+length(which(test==FALSE))
+```
+
+Convert sf to sp
+```{r}
+infocomm_sp <- as_Spatial(infocomm_sf)
+```
+
+
+
+## CHAS Clinics
+```{r}
+chas_sf <- st_read(dsn='data/geospatial/chas-clinics-kml.kml')
+```
+
+```{r}
+glimpse(chas_sf)
+```
+
+Check for projection
+```{r}
+st_crs(chas_sf)
+```
+
+Assign EPSG
+```{r}
+chas_sf <- st_transform(chas_sf, 3414)
+```
+
+```{r}
+st_crs(chas_sf)
+```
+
+Check for validity - data is valid
+```{r}
+test <- st_is_valid(chas_sf)
+length(which(test==FALSE))
+```
+
+Convert sf to sp
+```{r}
+chas_sp <- as_Spatial(chas_sf)
+```
+
+
+## MP_14 Subzone Data
+```{r}
+mpsz_sf <- st_read(dsn='data/geospatial', layer='MP14_SUBZONE_WEB_PL')
+```
+
+Check for projection
+```{r}
+st_crs(mpsz_sf)
+```
+
+Assign EPSG
+```{r}
+mpsz_sf <- st_transform(mpsz_sf, 3414)
+```
+
+```{r}
+st_crs(mpsz_sf)
+```
+
+Check for validity - data is valid
+```{r}
+test <- st_is_valid(mpsz_sf)
+length(which(test==FALSE))
+```
+
+Convert sf to sp
+```{r}
+mpsz_sp <- as_Spatial(mpsz_sf)
+```
+
