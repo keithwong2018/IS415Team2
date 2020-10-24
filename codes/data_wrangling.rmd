@@ -14,7 +14,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Load Packages
 ```{r}
-packages = c('rgdal', 'sf', 'tmap', 'tidyverse', 'sp', 'rgeos','maptools', 'raster', 'spatstat', 'tmaptools', 'spdep')
+packages = c('rgdal', 'sf', 'tmap', 'tidyverse', 'sp', 'rgeos','maptools', 'raster', 'spatstat', 'tmaptools', 'spdep', 'OpenStreetMap')
 for (p in packages){
   if (!require(p, character.only = T)){
     install.packages(p)
@@ -56,6 +56,11 @@ eldercare_sf <- st_read(dsn='data/geospatial', layer='ELDERCARE')
 eldercare_sf
 ```
 
+```{r}
+eldercare_sf <- eldercare_sf %>%
+  mutate(label = "Eldercare centres")
+```
+
 Check for NA values 
 ```{r}
 eldercare_sf[rowSums(is.na(eldercare_sf))!=0, ]
@@ -87,7 +92,10 @@ Convert sf to sp
 ```{r}
 eldercare_sp <- as_Spatial(eldercare_sf)
 ```
-
+sp dataframe to spatial points
+```{r}
+eldercare_spatialpoint <- as(chas_sp, "SpatialPoints")
+```
 
 ## Silver Infocomm
 ```{r}
@@ -95,9 +103,13 @@ infocomm_sf <- st_read(dsn='data/geospatial', layer='SILVERINFOCOMM')
 ```
 
 ```{r}
-glimpse(infocomm_sf)
+infocomm_sf <- infocomm_sf %>%
+  mutate(label = "Silver Infocomm Junc")
 ```
 
+```{r}
+glimpse(infocomm_sf)
+```
 
 Check for projection
 ```{r}
@@ -124,11 +136,20 @@ Convert sf to sp
 infocomm_sp <- as_Spatial(infocomm_sf)
 ```
 
+sp dataframe to spatial points
+```{r}
+infocomm_spatialpoint <- as(infocomm_sp, "SpatialPoints")
+```
 
 
 ## CHAS Clinics
 ```{r}
 chas_sf <- st_read(dsn='data/geospatial/chas-clinics-kml.kml')
+```
+
+```{r}
+chas_sf <- chas_sf %>%
+  mutate(label = "Chas Clinics")
 ```
 
 ```{r}
@@ -158,6 +179,10 @@ length(which(test==FALSE))
 Convert sf to sp
 ```{r}
 chas_sp <- as_Spatial(chas_sf)
+```
+sp dataframe to spatial points
+```{r}
+chas_spatialpoint <- as(chas_sp, "SpatialPoints")
 ```
 
 
@@ -191,3 +216,141 @@ Convert sf to sp
 mpsz_sp <- as_Spatial(mpsz_sf)
 ```
 
+## Coastal outline
+```{r}
+sg_costal <- readOGR(dsn = "data/geospatial", layer="CostalOutline")
+```
+```{r}
+sg_osm <- read_osm(mpsz_sp, ext=1.3)
+```
+
+
+```{r}
+tm_shape(sg_osm)+ 
+  tm_layout(legend.outside = TRUE)+
+  tm_rgb()+
+tm_shape(sg)+
+  tm_borders(alpha=0.5, col = "black", lwd = 1)+
+tm_shape(chas_sp)+
+  tm_dots(col = "label",
+          title="",
+          alpha=0.7,
+          size = 0.1,
+          border.col = "black",
+          border.lwd = 5,
+          palette=c("red"))+
+  tm_shape(eldercare_sp)+
+  tm_dots(col = "label",
+          title="",
+          alpha=0.7,
+          size = 0.1,
+          border.col = "black",
+          border.lwd = 5,
+          palette=c("green"))+
+  tm_shape(infocomm_sp)+
+  tm_dots(col = "label",
+          title="",
+          alpha=0.7,
+          size = 0.1,
+          border.col = "black",
+          border.lwd = 5,
+          palette=c("blue")) +
+    tm_layout("Facility Type",
+            title.size = 1,
+            legend.text.size = 1,
+            legend.title.size = 1)
+```
+
+```{r}
+plot(mpsz_sp, border="darkgrey")+
+plot(chas_spatialpoint, add=TRUE)
+```
+
+
+```{r}
+sg_owin <- as(mpsz_sp, "owin")
+plot(sg_owin)
+```
+```{r}
+chas_ppp = chas_ppp_jit[sg_owin]
+```
+
+
+## Spatial point pattern analysis for chas clinics
+
+In order to confirm the spatial patterns for chas clinics, we will have to conduct a hypothesis test for all subzones and chas clinic locations. 
+
+H0 = The distribution of chas clinics are randomly distributed. H1= The distribution of chas clinics are not randomly distributed. 
+
+The null hypothesis will be rejected if p-value is smaller than alpha < 0.001i
+
+converting spatialdata into ppp object format
+```{r}
+chas_ppp <- as(chas_spatialpoint, "ppp")
+```
+
+using jittering to better visualize overlapped data
+```{r}
+chas_ppp_jit <- rjitter(chas_ppp, retry=TRUE, nsim=1, drop=TRUE)
+```
+
+
+```{r}
+K_chas = Kest(chas_ppp, correction = "Ripley")
+plot(K_chas, . -r ~ r, ylab= "K(d)-r", xlab = "d(m)")
+```
+
+```{r}
+K_chas.csr <- envelope(chas_ppp, Kest, nsim = 99, rank = 1, glocal=TRUE)
+```
+
+```{r}
+plot(K_chas.csr, . - r ~ r, xlab="d", ylab="K(d)-r")
+```
+
+```{r}
+getKernelDensityMap <- function(ppp, ppp_str) {
+  # Rescale from meters to kilometers
+  ppp.km <- rescale(ppp, 1000, "km")
+
+  # Computing kernel density estimation using defining bandwidth manually
+  kde_1000 <- density(ppp.km, sigma=1, edge=TRUE, kernel="gaussian")
+
+  # Plot
+  #par(mfrow=c(1,2))
+  #plot(ppp.km, main=ppp_str)
+  #plot(kde_1000)
+  
+  # Converting KDE output into grid object
+  gridded_kde_1000_bw <- as.SpatialGridDataFrame.im(kde_1000)
+  
+  # Converting grid object into raster
+  kde_1000_bw_raster <- raster(gridded_kde_1000_bw)
+  
+  # Assigning projection systems
+  projection(kde_1000_bw_raster) <- crs("+init=EPSG:3414 +datum=WGS84 +units=km")
+  
+  # Plot kernel density map on openstreetmap
+  tm_shape(sg_osm)+ 
+    tm_layout(legend.outside = TRUE, title=ppp_str)+
+    tm_rgb()+
+  tm_shape(mpsz_sp)+
+    tm_polygons(alpha = 0, border.col = "blue", border.alpha = 0.5)+
+  tm_shape(kde_1000_bw_raster) + 
+    tm_raster("v", alpha=0.5,  
+          palette = "YlOrRd")
+  
+}
+```
+
+```{r}
+getKernelDensityMap(chas_ppp, "Chas Clinics KDE")
+```
+
+```{r}
+chas_ppp = chas_ppp_jit[sg_owin]
+```
+
+```{r}
+plot(chas_ppp)
+```
