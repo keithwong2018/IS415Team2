@@ -14,7 +14,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Load Packages
 ```{r}
-packages = c('rgdal', 'sf', 'tmap', 'tidyverse', 'sp', 'rgeos','maptools', 'raster', 'spatstat', 'tmaptools', 'spdep', 'OpenStreetMap')
+packages = c('rgdal', 'sf', 'tmap', 'tidyverse', 'sp', 'rgeos','maptools', 'raster', 'spatstat', 'spdep', 'OpenStreetMap', 'tmaptools', 'spatialEco')
 for (p in packages){
   if (!require(p, character.only = T)){
     install.packages(p)
@@ -45,8 +45,10 @@ popdata2019 <- popdata %>%
   group_by(planning_area, subzone, age_group) %>%
   summarise(elderly_count = sum(resident_count)) %>%
   ungroup() %>%
-  spread(age_group, elderly_count)
-popdata2019
+  spread(age_group, elderly_count) %>%
+  mutate(`elderly_count` = `65_to_69` + `70_to_74` + `75_to_79` + `80_to_84` + `85_to_89` + `90_and_over`)
+
+popdata2019 <- mutate_at(popdata2019, .vars = c("subzone", "planning_area"), .funs=toupper)
 ```
 
 
@@ -94,7 +96,7 @@ eldercare_sp <- as_Spatial(eldercare_sf)
 ```
 sp dataframe to spatial points
 ```{r}
-eldercare_spatialpoint <- as(chas_sp, "SpatialPoints")
+eldercare_spatialpoint <- as(eldercare_sp, "SpatialPoints")
 ```
 
 ## Silver Infocomm
@@ -218,7 +220,7 @@ mpsz_sp <- as_Spatial(mpsz_sf)
 
 ## Coastal outline
 ```{r}
-sg_costal <- readOGR(dsn = "data/geospatial", layer="CostalOutline")
+sg <- readOGR(dsn = "data/geospatial", layer="CostalOutline")
 ```
 ```{r}
 sg_osm <- read_osm(mpsz_sp, ext=1.3)
@@ -275,6 +277,25 @@ plot(sg_owin)
 chas_ppp = chas_ppp_jit[sg_owin]
 ```
 
+## Joining dataframes together
+mpsz and popdata2019
+```{r}
+mpsz_demand <- left_join(mpsz_sf, popdata2019, by=c('PLN_AREA_N' = 'planning_area', 'SUBZONE_N' = 'subzone'))
+mpsz_demand <- mpsz_demand %>%
+  dplyr::select(SUBZONE_N, PLN_AREA_N, REGION_N, X_ADDR, Y_ADDR, `65_to_69`, `70_to_74`, `75_to_79`, `80_to_84`, `85_to_89`, `90_and_over`, `elderly_count`, geometry)
+```
+
+mpsz, eldercare, chas, silver infocomm
+```{r}
+mpsz_supply <- mpsz_sf
+mpsz_supply$eldercare <- lengths(st_intersects(mpsz_supply, eldercare_sf))
+mpsz_supply$chas_clinic <- lengths(st_intersects(mpsz_supply, chas_sf))
+mpsz_supply$silver_infocomm <- lengths(st_intersects(mpsz_supply, infocomm_sf))
+
+
+mpsz_supply <- mpsz_supply %>%
+  dplyr::select(SUBZONE_N, PLN_AREA_N, REGION_N, X_ADDR, Y_ADDR, geometry, eldercare, chas_clinic, silver_infocomm)
+```
 
 ## Spatial point pattern analysis for chas clinics
 
@@ -354,3 +375,6 @@ chas_ppp = chas_ppp_jit[sg_owin]
 ```{r}
 plot(chas_ppp)
 ```
+
+
+
