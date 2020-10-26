@@ -24,49 +24,52 @@ for (p in packages){
 ```
 
 
-## Computing centroids for each planning area
-```{r}
-centroids <- st_centroid(mpsz_sf)
-```
-```{r}
-st_crs(centroids)
-```
-
-```{r}
-centroids_sp <- as_Spatial(centroids)
-```
-
-
-```{r}
-plot(mpsz_sp, col='grey')
-plot(centroids_sp, add=TRUE)
-```
 Combine the centroid and polygons
 ```{r}
-mpsz_point <- point.in.poly(centroids, mpsz_sf, sp=FALSE, duplicate=FALSE)
+# mpsz_point <- point.in.poly(centroids, mpsz_sf, sp=FALSE, duplicate=FALSE)
 ```
+
+# Generate Distance Matrices using Euclidean Distance
+## Eldercare
+rows are facilities, columns are centroids
 ```{r}
-mpsz_point <- spTransform(mpsz_point, CRS('+init=epsg:3414'))
-plot(mpsz_point)
+eldercare_dismat <- CreateDistMatrix(knownpts=eldercare_sf, 
+                                unknownpts=centroids, 
+                                longlat=FALSE)
+chas_dismat <- CreateDistMatrix(knownpts=chas_sf, 
+                                unknownpts=centroids, 
+                                longlat=FALSE)
+infocomm_dismat <- CreateDistMatrix(knownpts=infocomm_sf, 
+                                unknownpts=centroids, 
+                                longlat=FALSE)
 ```
 
-## Proximity Analysis
-Using Euclidean Distance
-
-### Eldercare
+convert distance matrices from metres to kilometres
 ```{r}
-eldercare_sp <- spTransform(eldercare_sp, CRS('+init=epsg:3414'))
-temp <- over(eldercare_sp, mpsz_point)
-temp
-```
-
-```{r}
-plot(mpsz_sf)
+eldercare_dismat <- as.matrix(eldercare_dismat/1000)
+chas_dismat <- as.matrix(chas_dismat/1000)
+infocomm_dismat <- as.matrix(infocomm_dismat/1000)
 ```
 
 
-## Accessibility Analysis
+
+
+
+# Geographical Accessibility Analysis
+## Eldercare
 To compute the accessibility of Eldercare services
 ```{r}
-eldercare.access <- ac(mpsz_demand$`elderly_count`, mpsz_supply$`eldercare`)
+eldercare_acc <- data.frame(ac(mpsz_supply$eldercare,
+                               mpsz_demand$elderly_count, 
+                               eldercare_dismat,
+                               d0 = 15, 
+                               power = 2, 
+                               family = 'SAM'))
+colnames(eldercare_acc) <- 'accSAM'
+eldercare_acc <- tibble::as_tibble(eldercare_acc)
+eldercare_SAM <- bind_cols(eldercare_sf, eldercare_acc)
+```
+
+```{r}
+sum(is.na(eldercare_SAM))
 ```
