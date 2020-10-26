@@ -14,7 +14,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Load Packages
 ```{r}
-packages = c('rgdal', 'sf', 'tmap', 'tidyverse', 'sp', 'rgeos','maptools', 'raster', 'spatstat', 'spdep', 'OpenStreetMap', 'tmaptools')
+packages = c('rgdal', 'sf', 'tmap', 'tidyverse', 'sp', 'rgeos','maptools', 'raster', 'spatstat', 'spdep', 'OpenStreetMap', 'tmaptools', 'spatialEco')
 for (p in packages){
   if (!require(p, character.only = T)){
     install.packages(p)
