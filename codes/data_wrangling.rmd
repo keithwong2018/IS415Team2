@@ -14,7 +14,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Load Packages
 ```{r}
-packages = c('rgdal', 'sf', 'tmap', 'tidyverse', 'sp', 'rgeos','maptools', 'raster', 'spatstat', 'spdep', 'OpenStreetMap', 'tmaptools', 'spatialEco')
+packages = c('rgdal', 'sf', 'tmap', 'tidyverse', 'sp', 'rgeos','maptools', 'raster', 'spatstat', 'spdep', 'OpenStreetMap', 'tmaptools', 'spatialEco', 'SpatialAcc', 'ggstatsplot', 'SpatialPosition')
 for (p in packages){
   if (!require(p, character.only = T)){
     install.packages(p)
@@ -30,7 +30,10 @@ popdata <- read_csv('data/aspatial/planning-area-subzone-age-group-sex-and-type-
 
 ```{r}
 glimpse(popdata)
+head(popdata)
 ```
+The columns are: planning_area, subzone, age_group, sex, type_of_dwelling, resident_count, year. 
+
 
 check for NA values
 ```{r}
@@ -50,29 +53,35 @@ popdata2019 <- popdata %>%
 
 popdata2019 <- mutate_at(popdata2019, .vars = c("subzone", "planning_area"), .funs=toupper)
 ```
+```{r}
+glimpse(popdata2019)
+```
 
 
 ## Eldercare 
 ```{r}
 eldercare_sf <- st_read(dsn='data/geospatial', layer='ELDERCARE')
-eldercare_sf
+```
+```{r}
+glimpse(eldercare_sf)
+head(eldercare_sf)
 ```
 
 ```{r}
 eldercare_sf <- eldercare_sf %>%
+  dplyr::select(NAME, ADDRESSPOS, ADDRESSSTR, X_ADDR, Y_ADDR, geometry) %>%
   mutate(label = "Eldercare centres")
+  
+```
+
+```{r}
+glimpse(eldercare_sf)
+head(eldercare_sf)
 ```
 
 Check for NA values 
 ```{r}
 eldercare_sf[rowSums(is.na(eldercare_sf))!=0, ]
-```
-all rows have NA values
-
-
-Check for projection
-```{r}
-st_crs(eldercare_sf)
 ```
 
 Assign EPSG
@@ -93,29 +102,29 @@ length(which(test==FALSE))
 Convert sf to sp
 ```{r}
 eldercare_sp <- as_Spatial(eldercare_sf)
-```
-sp dataframe to spatial points
-```{r}
 eldercare_spatialpoint <- as(eldercare_sp, "SpatialPoints")
 ```
+
+
+
 
 ## Silver Infocomm
 ```{r}
 infocomm_sf <- st_read(dsn='data/geospatial', layer='SILVERINFOCOMM')
 ```
+```{r}
+glimpse(infocomm_sf)
+head(infocomm_sf)
+```
 
 ```{r}
 infocomm_sf <- infocomm_sf %>%
+  dplyr::select(NAME, ADDRESSBUI, ADDRESSPOS, X_ADDR, Y_ADDR, geometry) %>%
   mutate(label = "Silver Infocomm Junc")
 ```
 
 ```{r}
 glimpse(infocomm_sf)
-```
-
-Check for projection
-```{r}
-st_crs(infocomm_sf)
 ```
 
 Assign EPSG
@@ -136,10 +145,6 @@ length(which(test==FALSE))
 Convert sf to sp
 ```{r}
 infocomm_sp <- as_Spatial(infocomm_sf)
-```
-
-sp dataframe to spatial points
-```{r}
 infocomm_spatialpoint <- as(infocomm_sp, "SpatialPoints")
 ```
 
@@ -147,6 +152,11 @@ infocomm_spatialpoint <- as(infocomm_sp, "SpatialPoints")
 ## CHAS Clinics
 ```{r}
 chas_sf <- st_read(dsn='data/geospatial/chas-clinics-kml.kml')
+```
+
+```{r}
+glimpse(chas_sf)
+head(chas_sf)
 ```
 
 ```{r}
@@ -158,10 +168,6 @@ chas_sf <- chas_sf %>%
 glimpse(chas_sf)
 ```
 
-Check for projection
-```{r}
-st_crs(chas_sf)
-```
 
 Assign EPSG
 ```{r}
@@ -181,9 +187,6 @@ length(which(test==FALSE))
 Convert sf to sp
 ```{r}
 chas_sp <- as_Spatial(chas_sf)
-```
-sp dataframe to spatial points
-```{r}
 chas_spatialpoint <- as(chas_sp, "SpatialPoints")
 ```
 
@@ -193,10 +196,19 @@ chas_spatialpoint <- as(chas_sp, "SpatialPoints")
 mpsz_sf <- st_read(dsn='data/geospatial', layer='MP14_SUBZONE_WEB_PL')
 ```
 
-Check for projection
 ```{r}
-st_crs(mpsz_sf)
+glimpse(mpsz_sf)
+head(mpsz_sf)
 ```
+```{r}
+mpsz_sf <- mpsz_sf %>%
+  dplyr::select(SUBZONE_N, PLN_AREA_N, REGION_N, X_ADDR, Y_ADDR, SHAPE_Leng, SHAPE_Area, geometry)
+```
+
+```{r}
+glimpse(mpsz_sf)
+```
+
 
 Assign EPSG
 ```{r}
@@ -213,15 +225,24 @@ test <- st_is_valid(mpsz_sf)
 length(which(test==FALSE))
 ```
 
+```{r}
+centroids <- st_centroid(mpsz_sf)
+```
+```{r}
+glimpse(centroids)
+```
+
 Convert sf to sp
 ```{r}
 mpsz_sp <- as_Spatial(mpsz_sf)
 ```
 
+
 ## Coastal outline
 ```{r}
 sg <- readOGR(dsn = "data/geospatial", layer="CostalOutline")
 ```
+
 ```{r}
 sg_osm <- read_osm(mpsz_sp, ext=1.3)
 ```
@@ -273,31 +294,62 @@ plot(chas_spatialpoint, add=TRUE)
 sg_owin <- as(mpsz_sp, "owin")
 plot(sg_owin)
 ```
-```{r}
-chas_ppp = chas_ppp_jit[sg_owin]
-```
 
-## Joining dataframes together
-mpsz and popdata2019
+
+# Joining dataframes together
+## mpsz and popdata2019
 ```{r}
 mpsz_demand <- left_join(mpsz_sf, popdata2019, by=c('PLN_AREA_N' = 'planning_area', 'SUBZONE_N' = 'subzone'))
-mpsz_demand <- mpsz_demand %>%
-  dplyr::select(SUBZONE_N, PLN_AREA_N, REGION_N, X_ADDR, Y_ADDR, `65_to_69`, `70_to_74`, `75_to_79`, `80_to_84`, `85_to_89`, `90_and_over`, `elderly_count`, geometry)
 ```
 
-mpsz, eldercare, chas, silver infocomm
+```{r}
+glimpse(mpsz_demand)
+```
+
+
+## mspz & centroids
+```{r}
+centroids <- st_join(centroids, mpsz_sf, join=st_intersects)
+```
+
+```{r}
+glimpse(centroids)
+```
+```{r}
+centroids <- centroids %>%
+  dplyr::rename(SUBZONE_N = SUBZONE_N.x, 
+         PLN_AREA_N = PLN_AREA_N.x, 
+         REGION_N = REGION_N.x, 
+         X_ADDR = X_ADDR.x, 
+         Y_ADDR = Y_ADDR.x,
+         SHAPE_Leng = SHAPE_Leng.x, 
+         SHAPE_Area = SHAPE_Area.x) %>%
+  dplyr::select(SUBZONE_N, PLN_AREA_N, REGION_N, X_ADDR, Y_ADDR, SHAPE_Leng, SHAPE_Area, geometry)
+```
+
+
+
+## mpsz, eldercare, chas, silver infocomm
 ```{r}
 mpsz_supply <- mpsz_sf
 mpsz_supply$eldercare <- lengths(st_intersects(mpsz_supply, eldercare_sf))
 mpsz_supply$chas_clinic <- lengths(st_intersects(mpsz_supply, chas_sf))
 mpsz_supply$silver_infocomm <- lengths(st_intersects(mpsz_supply, infocomm_sf))
-
-
-mpsz_supply <- mpsz_supply %>%
-  dplyr::select(SUBZONE_N, PLN_AREA_N, REGION_N, X_ADDR, Y_ADDR, geometry, eldercare, chas_clinic, silver_infocomm)
 ```
 
-## Spatial point pattern analysis for chas clinics
+```{r}
+glimpse(mpsz_supply)
+```
+
+## mpsz and eldercare 
+```{r}
+eldercare_sf <- st_join(eldercare_sf, mpsz_sf, join=st_intersects)
+chas_sf <- st_join(chas_sf, mpsz_sf, join=st_intersects)
+infocomm_sf <- st_join(infocomm_sf, mpsz_sf, join=st_intersects)
+```
+
+
+# Spatial point pattern analysis for chas clinics
 
 In order to confirm the spatial patterns for chas clinics, we will have to conduct a hypothesis test for all subzones and chas clinic locations. 
 
@@ -315,6 +367,9 @@ using jittering to better visualize overlapped data
 chas_ppp_jit <- rjitter(chas_ppp, retry=TRUE, nsim=1, drop=TRUE)
 ```
 
+```{r}
+chas_ppp = chas_ppp_jit[sg_owin]
+```
 
 ```{r}
 K_chas = Kest(chas_ppp, correction = "Ripley")
