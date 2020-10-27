@@ -324,7 +324,24 @@ centroids <- centroids %>%
          Y_ADDR = Y_ADDR.x,
          SHAPE_Leng = SHAPE_Leng.x, 
          SHAPE_Area = SHAPE_Area.x) %>%
-  dplyr::select(SUBZONE_N, PLN_AREA_N, REGION_N, X_ADDR, Y_ADDR, SHAPE_Leng, SHAPE_Area, geometry)
+  dplyr::select(SUBZONE_N, PLN_AREA_N, REGION_N, X_ADDR, Y_ADDR, SHAPE_Leng, SHAPE_Area, geometry) 
+```
+
+```{r}
+centroids_demand <- st_join(centroids, mpsz_demand, join=st_intersects) %>%
+  dplyr::rename(SUBZONE_N = SUBZONE_N.x, 
+         PLN_AREA_N = PLN_AREA_N.x, 
+         REGION_N = REGION_N.x, 
+         X_ADDR = X_ADDR.x, 
+         Y_ADDR = Y_ADDR.x,
+         SHAPE_Leng = SHAPE_Leng.x, 
+         SHAPE_Area = SHAPE_Area.x, 
+         elderly_count = elderly_count) %>%
+  dplyr::select(SUBZONE_N, PLN_AREA_N, REGION_N, X_ADDR, Y_ADDR, SHAPE_Leng, SHAPE_Area, geometry, elderly_count)
+```
+
+```{r}
+glimpse(centroids_demand)
 ```
 
 
@@ -341,12 +358,30 @@ mpsz_supply$silver_infocomm <- lengths(st_intersects(mpsz_supply, infocomm_sf))
 glimpse(mpsz_supply)
 ```
 
-## mpsz and eldercare 
+```{r}
+centroids_supply <- st_join(centroids, mpsz_supply, join=st_intersects) %>%
+  dplyr::rename(SUBZONE_N = SUBZONE_N.x, 
+         PLN_AREA_N = PLN_AREA_N.x, 
+         REGION_N = REGION_N.x, 
+         X_ADDR = X_ADDR.x, 
+         Y_ADDR = Y_ADDR.x,
+         SHAPE_Leng = SHAPE_Leng.x, 
+         SHAPE_Area = SHAPE_Area.x,) %>%
+  dplyr::select(SUBZONE_N, PLN_AREA_N, REGION_N, X_ADDR, Y_ADDR, SHAPE_Leng, SHAPE_Area, geometry, eldercare, chas_clinic, silver_infocomm)
+```
+
+```{r}
+glimpse(centroids_supply)
+```
+
+## mpsz and eldercare, chas, silver infocomm
 ```{r}
 eldercare_sf <- st_join(eldercare_sf, mpsz_sf, join=st_intersects)
 chas_sf <- st_join(chas_sf, mpsz_sf, join=st_intersects)
 infocomm_sf <- st_join(infocomm_sf, mpsz_sf, join=st_intersects)
 ```
+
+
 
 
 # Spatial point pattern analysis for chas clinics

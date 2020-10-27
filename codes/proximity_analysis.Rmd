@@ -59,8 +59,8 @@ infocomm_dismat <- as.matrix(infocomm_dismat/1000)
 ## Eldercare
 To compute the accessibility of Eldercare services
 ```{r}
-eldercare_acc <- data.frame(ac(mpsz_supply$eldercare,
-                               mpsz_demand$elderly_count, 
+eldercare_acc <- data.frame(ac(centroids_supply$eldercare,
+                               centroids_demand$elderly_count, 
                                eldercare_dismat,
                                d0 = 15, 
                                power = 2, 
