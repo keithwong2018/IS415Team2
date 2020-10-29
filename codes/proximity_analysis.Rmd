@@ -33,14 +33,14 @@ Combine the centroid and polygons
 ## Eldercare
 rows are facilities, columns are centroids
 ```{r}
-eldercare_dismat <- CreateDistMatrix(knownpts=eldercare_sf, 
-                                unknownpts=centroids, 
+eldercare_dismat <- CreateDistMatrix(knownpts=centroids_demand, 
+                                unknownpts=eldercare_sf, 
                                 longlat=FALSE)
-chas_dismat <- CreateDistMatrix(knownpts=chas_sf, 
-                                unknownpts=centroids, 
+chas_dismat <- CreateDistMatrix(knownpts=centroids_demand , 
+                                unknownpts=chas_sf, 
                                 longlat=FALSE)
-infocomm_dismat <- CreateDistMatrix(knownpts=infocomm_sf, 
-                                unknownpts=centroids, 
+infocomm_dismat <- CreateDistMatrix(knownpts=centroids_demand, 
+                                unknownpts=infocomm_sf, 
                                 longlat=FALSE)
 ```
 
@@ -59,17 +59,29 @@ infocomm_dismat <- as.matrix(infocomm_dismat/1000)
 ## Eldercare
 To compute the accessibility of Eldercare services
 ```{r}
-eldercare_acc <- data.frame(ac(centroids_supply$eldercare,
-                               centroids_demand$elderly_count, 
+eldercare_acc <- data.frame(ac(centroids_demand$elderly_count,
+                               eldercare_sf$capacity, 
                                eldercare_dismat,
-                               d0 = 15, 
+                               d0 = 30, 
                                power = 2, 
                                family = 'SAM'))
 colnames(eldercare_acc) <- 'accSAM'
 eldercare_acc <- tibble::as_tibble(eldercare_acc)
-eldercare_SAM <- bind_cols(eldercare_sf, eldercare_acc)
+
+```
+
+```{r}
+eldercare_SAM <- bind_cols(mpsz_sf, eldercare_acc)
 ```
 
 ```{r}
 sum(is.na(eldercare_SAM))
+```
+
+```{r}
+tmap_mode('view')
+tm_shape(eldercare_SAM) + 
+  tm_borders(alpha = 0.5) + 
+  tm_fill(col='accSAM', 
+          style='pretty')
 ```

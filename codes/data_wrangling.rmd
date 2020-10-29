@@ -70,7 +70,8 @@ head(eldercare_sf)
 ```{r}
 eldercare_sf <- eldercare_sf %>%
   dplyr::select(NAME, ADDRESSPOS, ADDRESSSTR, X_ADDR, Y_ADDR, geometry) %>%
-  mutate(label = "Eldercare centres")
+  mutate(label = "Eldercare centres") %>%
+  mutate(capacity = 1)
   
 ```
 
@@ -120,7 +121,8 @@ head(infocomm_sf)
 ```{r}
 infocomm_sf <- infocomm_sf %>%
   dplyr::select(NAME, ADDRESSBUI, ADDRESSPOS, X_ADDR, Y_ADDR, geometry) %>%
-  mutate(label = "Silver Infocomm Junc")
+  mutate(label = "Silver Infocomm Junc") %>%
+  mutate(capacity = 1)
 ```
 
 ```{r}
@@ -161,7 +163,8 @@ head(chas_sf)
 
 ```{r}
 chas_sf <- chas_sf %>%
-  mutate(label = "Chas Clinics")
+  mutate(label = "Chas Clinics") %>%
+  mutate(capacity = 1)
 ```
 
 ```{r}
@@ -379,6 +382,10 @@ glimpse(centroids_supply)
 eldercare_sf <- st_join(eldercare_sf, mpsz_sf, join=st_intersects)
 chas_sf <- st_join(chas_sf, mpsz_sf, join=st_intersects)
 infocomm_sf <- st_join(infocomm_sf, mpsz_sf, join=st_intersects)
+```
+
+```{r}
+glimpse(eldercare_sf)
 ```
 
 
