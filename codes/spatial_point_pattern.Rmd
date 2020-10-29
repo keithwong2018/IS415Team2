@@ -1,7 +1,7 @@
 ---
-title: "wrangling"
-author: "Veronica Lee Xuan Hui"
-date: "10/23/2020"
+title: "spatial_point_pattern"
+author: "Keith Wong"
+date: "10/29/2020"
 output: 
   html_document: 
     toc: true
@@ -14,7 +14,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Load Packages
 ```{r}
-packages = c('rgdal', 'sf', 'tmap', 'tidyverse', 'sp', 'rgeos','maptools', 'raster', 'spatstat', 'spdep', 'OpenStreetMap', 'tmaptools', 'spatialEco', 'SpatialAcc', 'ggstatsplot', 'SpatialPosition')
+packages = c('rgdal', 'sf', 'tmap', 'tidyverse', 'sp', 'rgeos','maptools', 'raster', 'spatstat', 'tmaptools', 'spdep', 'OpenStreetMap')
 for (p in packages){
   if (!require(p, character.only = T)){
     install.packages(p)
@@ -23,40 +23,9 @@ for (p in packages){
 }
 ```
 
-## Population Data 
 ```{r}
 popdata <- read_csv('data/aspatial/planning-area-subzone-age-group-sex-and-type-of-dwelling-june-2011-2019.csv')
 ```
-
-```{r}
-glimpse(popdata)
-head(popdata)
-```
-The columns are: planning_area, subzone, age_group, sex, type_of_dwelling, resident_count, year. 
-
-
-check for NA values
-```{r}
-popdata[rowSums(is.na(popdata))!=0, ]
-```
-
-Extracting relevant data
-```{r}
-popdata2019 <- popdata %>%
-  filter(year == 2019) %>%
-  filter(age_group == "65_to_69" | age_group == "70_to_74" | age_group == '75_to_79' | age_group == '80_to_84' | age_group == '85_to_89' | age_group == '90_and_over') %>%
-  group_by(planning_area, subzone, age_group) %>%
-  summarise(elderly_count = sum(resident_count)) %>%
-  ungroup() %>%
-  spread(age_group, elderly_count) %>%
-  mutate(`elderly_count` = `65_to_69` + `70_to_74` + `75_to_79` + `80_to_84` + `85_to_89` + `90_and_over`)
-
-popdata2019 <- mutate_at(popdata2019, .vars = c("subzone", "planning_area"), .funs=toupper)
-```
-```{r}
-glimpse(popdata2019)
-```
-
 
 
 ## Eldercare 
@@ -65,26 +34,8 @@ eldercare_sf <- st_read(dsn='data/geospatial', layer='ELDERCARE')
 ```
 
 ```{r}
-glimpse(eldercare_sf)
-head(eldercare_sf)
-```
-
-```{r}
 eldercare_sf <- eldercare_sf %>%
-  dplyr::select(NAME, ADDRESSPOS, ADDRESSSTR, X_ADDR, Y_ADDR, geometry) %>%
-  mutate(label = "Eldercare centres") %>%
-  mutate(capacity = 1)
-  
-```
-
-```{r}
-glimpse(eldercare_sf)
-head(eldercare_sf)
-```
-
-Check for NA values 
-```{r}
-eldercare_sf[rowSums(is.na(eldercare_sf))!=0, ]
+  mutate(label = "Eldercare centres") 
 ```
 
 Assign EPSG
@@ -96,37 +47,20 @@ eldercare_sf <- st_transform(eldercare_sf, 3414)
 st_crs(eldercare_sf)
 ```
 
-Check for validity - data is valid
-```{r}
-test <- st_is_valid(eldercare_sf)
-length(which(test==FALSE))
-```
-
 Convert sf to sp
 ```{r}
 eldercare_sp <- as_Spatial(eldercare_sf)
 eldercare_spatialpoint <- as(eldercare_sp, "SpatialPoints")
 ```
 
-
 ## Silver Infocomm
 ```{r}
 infocomm_sf <- st_read(dsn='data/geospatial', layer='SILVERINFOCOMM')
 ```
-```{r}
-glimpse(infocomm_sf)
-head(infocomm_sf)
-```
 
 ```{r}
 infocomm_sf <- infocomm_sf %>%
-  dplyr::select(NAME, ADDRESSBUI, ADDRESSPOS, X_ADDR, Y_ADDR, geometry) %>%
-  mutate(label = "Silver Infocomm Junc") %>%
-  mutate(capacity = 1)
-```
-
-```{r}
-glimpse(infocomm_sf)
+  mutate(label = "Silver Infocomm Junc")
 ```
 
 Assign EPSG
@@ -157,19 +91,10 @@ chas_sf <- st_read(dsn='data/geospatial/chas-clinics-kml.kml')
 ```
 
 ```{r}
-glimpse(chas_sf)
-```
-
-```{r}
 chas_sf <- chas_sf %>%
   mutate(label = "Chas Clinics") %>%
   mutate(capacity = 1)
 ```
-
-```{r}
-glimpse(chas_sf)
-```
-
 
 Assign EPSG
 ```{r}
@@ -178,12 +103,6 @@ chas_sf <- st_transform(chas_sf, 3414)
 
 ```{r}
 st_crs(chas_sf)
-```
-
-Check for validity - data is valid
-```{r}
-test <- st_is_valid(chas_sf)
-length(which(test==FALSE))
 ```
 
 Convert sf to sp
@@ -199,18 +118,9 @@ mpsz_sf <- st_read(dsn='data/geospatial', layer='MP14_SUBZONE_WEB_PL')
 ```
 
 ```{r}
-glimpse(mpsz_sf)
-head(mpsz_sf)
-```
-```{r}
 mpsz_sf <- mpsz_sf %>%
   dplyr::select(SUBZONE_N, PLN_AREA_N, REGION_N, X_ADDR, Y_ADDR, SHAPE_Leng, SHAPE_Area, geometry)
 ```
-
-```{r}
-glimpse(mpsz_sf)
-```
-
 
 Assign EPSG
 ```{r}
@@ -221,17 +131,8 @@ mpsz_sf <- st_transform(mpsz_sf, 3414)
 st_crs(mpsz_sf)
 ```
 
-Check for validity - data is valid
-```{r}
-test <- st_is_valid(mpsz_sf)
-length(which(test==FALSE))
-```
-
 ```{r}
 centroids <- st_centroid(mpsz_sf)
-```
-```{r}
-glimpse(centroids)
 ```
 
 Convert sf to sp
@@ -248,7 +149,6 @@ sg <- readOGR(dsn = "data/geospatial", layer="CostalOutline")
 ```{r}
 sg_osm <- read_osm(mpsz_sp, ext=1.3)
 ```
-
 
 ```{r}
 tm_shape(sg_osm)+ 
@@ -286,99 +186,7 @@ tm_shape(chas_sp)+
             legend.title.size = 1)
 ```
 
-```{r}
-plot(mpsz_sp, border="darkgrey")+
-plot(chas_spatialpoint, add=TRUE)
-```
-
-
-```{r}
-sg_owin <- as(mpsz_sp, "owin")
-plot(sg_owin)
-```
-
-
-# Joining dataframes together
-## mpsz and popdata2019
-```{r}
-mpsz_demand <- left_join(mpsz_sf, popdata2019, by=c('PLN_AREA_N' = 'planning_area', 'SUBZONE_N' = 'subzone'))
-```
-
-```{r}
-glimpse(mpsz_demand)
-```
-
-
-## mspz & centroids
-```{r}
-centroids <- st_join(centroids, mpsz_sf, join=st_intersects)
-```
-
-```{r}
-glimpse(centroids)
-```
-```{r}
-centroids <- centroids %>%
-  dplyr::rename(SUBZONE_N = SUBZONE_N.x, 
-         PLN_AREA_N = PLN_AREA_N.x, 
-         REGION_N = REGION_N.x, 
-         X_ADDR = X_ADDR.x, 
-         Y_ADDR = Y_ADDR.x,
-         SHAPE_Leng = SHAPE_Leng.x, 
-         SHAPE_Area = SHAPE_Area.x) %>%
-  dplyr::select(SUBZONE_N, PLN_AREA_N, REGION_N, X_ADDR, Y_ADDR, SHAPE_Leng, SHAPE_Area, geometry) 
-```
-
-```{r}
-centroids_demand <- st_join(centroids, mpsz_demand, join=st_intersects) %>%
-  dplyr::rename(SUBZONE_N = SUBZONE_N.x, 
-         PLN_AREA_N = PLN_AREA_N.x, 
-         REGION_N = REGION_N.x, 
-         X_ADDR = X_ADDR.x, 
-         Y_ADDR = Y_ADDR.x,
-         SHAPE_Leng = SHAPE_Leng.x, 
-         SHAPE_Area = SHAPE_Area.x, 
-         elderly_count = elderly_count) %>%
-  dplyr::select(SUBZONE_N, PLN_AREA_N, REGION_N, X_ADDR, Y_ADDR, SHAPE_Leng, SHAPE_Area, geometry, elderly_count)
-```
-
-```{r}
-glimpse(centroids_demand)
-```
-
-
-
-## mpsz, eldercare, chas, silver infocomm
-```{r}
-mpsz_supply <- mpsz_sf
-mpsz_supply$eldercare <- lengths(st_intersects(mpsz_supply, eldercare_sf))
-mpsz_supply$chas_clinic <- lengths(st_intersects(mpsz_supply, chas_sf))
-mpsz_supply$silver_infocomm <- lengths(st_intersects(mpsz_supply, infocomm_sf))
-```
-
-```{r}
-glimpse(mpsz_supply)
-```
-
-```{r}
-centroids_supply <- st_join(centroids, mpsz_supply, join=st_intersects) %>%
-  dplyr::rename(SUBZONE_N = SUBZONE_N.x, 
-         PLN_AREA_N = PLN_AREA_N.x, 
-         REGION_N = REGION_N.x, 
-         X_ADDR = X_ADDR.x, 
-         Y_ADDR = Y_ADDR.x,
-         SHAPE_Leng = SHAPE_Leng.x, 
-         SHAPE_Area = SHAPE_Area.x,) %>%
-  dplyr::select(SUBZONE_N, PLN_AREA_N, REGION_N, X_ADDR, Y_ADDR, SHAPE_Leng, SHAPE_Area, geometry, eldercare, chas_clinic, silver_infocomm)
-```
-
-```{r}
-glimpse(centroids_supply)
-```
-
-
-
-# Spatial point pattern analysis for chas clinics
+## Spatial point pattern analysis for chas clinics
 
 In order to confirm the spatial patterns for chas clinics, we will have to conduct a hypothesis test for all subzones and chas clinic locations. 
 
@@ -387,6 +195,7 @@ H0 = The distribution of chas clinics are randomly distributed. H1= The distribu
 The null hypothesis will be rejected if p-value is smaller than alpha < 0.001i
 
 converting spatialdata into ppp object format
+
 ```{r}
 chas_ppp <- as(chas_spatialpoint, "ppp")
 ```
@@ -402,8 +211,8 @@ chas_ppp = chas_ppp_jit[sg_owin]
 
 ```{r}
 K_chas = Kest(chas_ppp, correction = "Ripley")
-plot(K_chas, . -r ~ r, ylab= "K(d)-r", xlab = "d(m)")
 ```
+
 
 ```{r}
 K_chas.csr <- envelope(chas_ppp, Kest, nsim = 99, rank = 1, glocal=TRUE)
@@ -451,14 +260,3 @@ getKernelDensityMap <- function(ppp, ppp_str) {
 ```{r}
 getKernelDensityMap(chas_ppp, "Chas Clinics KDE")
 ```
-
-```{r}
-chas_ppp = chas_ppp_jit[sg_owin]
-```
-
-```{r}
-plot(chas_ppp)
-```
-
-
-
