@@ -380,13 +380,7 @@ getPA_SAM <- function(demand, supply, dist_matrix, sf) {
   colnames(temp) <- 'accSAM'
   temp <- tibble::as_tibble(temp)
   result <- bind_cols(sf, temp)
-  
-  
-  #Plot the output in a map
-  tm_shape(result)+ 
-    tm_borders(alpha = 0.5) + 
-    tm_fill(col='accSAM', 
-            style='pretty')
+  return(result)
 }
 
 
@@ -428,16 +422,33 @@ ui <- navbarPage("IS415 Team2",
            tabPanel("Accessibility", 
                     fixedRow(
                       column(12, 
-                             titlePanel('Geographical Accessibility by Planning Area'), 
-                             fixedRow(), 
-                             fixedRow(
-                               column(2, selectInput('planningarea', 'Select Planning Area', choices = c('Tampines', 'Ang Mo Kio', 'Bishan', 'Jurong West'))
-                                      ), 
-                               column(6
-                                      
-                                      ), 
-                               column(6
-                                      ) 
+                             titlePanel('Geographical Accessibility by Planning Area'),
+                             sidebarLayout(
+                               sidebarPanel(
+                                 
+                                 'Select Planning Area', 
+                                 radioButtons(inputId='PLN_AREA_N', 
+                                        label='Planning Area', 
+                                        choices=c('Tampines' = 'TAMPINES', 
+                                                  'Ang Mo Kio' = 'ANG MO KIO', 
+                                                  'Bishan' = 'BISHAN', 
+                                                  'Jurong West' = 'JURONG WEST'), 
+                                        selected='Tampines'), 
+                                 
+                                 'Select Facility', 
+                                 radioButtons(inputId='facilityType', 
+                                              label='Facility Type', 
+                                              choices=c('Eldercare Centres', 
+                                                        'Silver Infocomm Junctions', 
+                                                        'CHAS Clinics'), 
+                                              selected='Eldercare Centres'), 
+                                 
+                                 actionButton('SAMgoButton', 'Go!')
+                               ), 
+                               
+                               mainPanel(
+                                 plotOutput('SAMmap')
+                               )
                              )
                              )
                     ))
@@ -466,6 +477,96 @@ server <- function(input, output) {
             tm_shape(eldercare_sf) + tm_dots("blue")+
             tm_shape(infocomm_sf) + tm_dots("green") 
     })
+    
+      
+    generateSAM <- eventReactive(input$SAMgoButton, {
+      
+      x <- input$PLN_AREA_N
+      y <- input$facilityType
+      
+      if(x=='TAMPINES'){
+        demand <- tp_centroids
+        sf <- tp_sf
+        
+        if (y=='Eldercare Centres'){
+          supply <- tp_eldercare_sf
+          dist_mat <- tp_eldercare_dismat
+        }
+        else if (y=='Silver Infocomm Junctions'){
+          supply <- tp_infocomm_sf
+          dist_mat <- tp_infocomm_dismat
+        }
+        else if(y=='CHAS Clinics'){
+          supply <- tp_chas_sf
+          dist_mat <- tp_chas_dismat
+        }
+      }
+      
+      else if(x=='ANG MO KIO'){
+        demand <- amk_centroids
+        sf <- amk_sf
+        
+        if (y=='Eldercare Centres'){
+          supply <- amk_eldercare_sf
+          dist_mat <- amk_eldercare_dismat
+        }
+        else if (y=='Silver Infocomm Junctions'){
+          supply <- amk_infocomm_sf
+          dist_mat <- amk_infocomm_dismat
+        }
+        else if(y=='CHAS Clinics'){
+          supply <- amk_chas_sf
+          dist_mat <- amk_chas_dismat
+        }
+      }
+      
+      else if(x=='BISHAN'){
+        demand <- bs_centroids
+        sf <- bs_sf
+        
+        if (y=='Eldercare Centres'){
+          supply <- bs_eldercare_sf
+          dist_mat <- bs_eldercare_dismat
+        }
+        else if (y=='Silver Infocomm Junctions'){
+          supply <- bs_infocomm_sf
+          dist_mat <- bs_infocomm_dismat
+        }
+        else if(y=='CHAS Clinics'){
+          supply <- bs_chas_sf
+          dist_mat <- bs_chas_dismat
+        }
+      }
+      
+      else if(x=='JURONG WEST'){
+        demand <- jw_centroids
+        sf <- jw_sf
+        
+        if (y=='Eldercare Centres'){
+          supply <- jw_eldercare_sf
+          dist_mat <- jw_eldercare_dismat
+        }
+        else if (y=='Silver Infocomm Junctions'){
+          supply <- jw_infocomm_sf
+          dist_mat <- jw_infocomm_dismat
+        }
+        else if(y=='CHAS Clinics'){
+          supply <- jw_chas_sf
+          dist_mat <- jw_chas_dismat
+        }
+      }
+      getPA_SAM(demand, supply, dist_mat, sf)
+      
+      })
+      
+      output$SAMmap <- renderTmap({
+        result <- generateSAM()
+        tm_shape(result)+ 
+          tm_borders(alpha = 0.5) + 
+          tm_fill(col='accSAM', 
+                  style='pretty')
+      })
+      
 }
 
 # Run the application 
