@@ -7,7 +7,7 @@
 #    http://shiny.rstudio.com/
 #
 
-packages = c('rgdal', 'sf', 'tmap', 'tidyverse', 'sp', 'rgeos','maptools', 'raster', 'spatstat', 'tmaptools', 'spdep', 'OpenStreetMap','shiny')
+packages = c('rgdal', 'sf', 'tmap', 'tidyverse', 'sp', 'rgeos','maptools', 'raster', 'spatstat', 'tmaptools', 'spdep', 'OpenStreetMap','shiny', 'SpatialPosition')
 for (p in packages){
     if (!require(p, character.only = T)){
         install.packages(p)
@@ -438,16 +438,16 @@ ui <- navbarPage("IS415 Team2",
                                  'Select Facility', 
                                  radioButtons(inputId='facilityType', 
                                               label='Facility Type', 
-                                              choices=c('Eldercare Centres', 
-                                                        'Silver Infocomm Junctions', 
-                                                        'CHAS Clinics'), 
+                                              choices=c('Eldercare Centres' = 'Eldercare Centres', 
+                                                        'Silver Infocomm Junctions' = 'Silver Infocomm Junctions', 
+                                                        'CHAS Clinics' = 'CHAS Clinics'), 
                                               selected='Eldercare Centres'), 
                                  
                                  actionButton('SAMgoButton', 'Go!')
                                ), 
                                
                                mainPanel(
-                                 plotOutput('SAMmap')
+                                 tmapOutput('SAMmap')
                                )
                              )
                              )
@@ -481,8 +481,8 @@ server <- function(input, output) {
       
     generateSAM <- eventReactive(input$SAMgoButton, {
       
-      x <- input$PLN_AREA_N
-      y <- input$facilityType
+      x <- isolate(input$PLN_AREA_N)
+      y <- isolate(input$facilityType)
       
       if(x=='TAMPINES'){
         demand <- tp_centroids
@@ -555,17 +555,19 @@ server <- function(input, output) {
           dist_mat <- jw_chas_dismat
         }
       }
-      getPA_SAM(demand, supply, dist_mat, sf)
+      
+      result <- getPA_SAM(demand, supply, dist_mat, sf)
+      tm_shape(result)+ 
+        tm_borders(alpha = 0.5) + 
+        tm_fill(col='accSAM', 
+                style='pretty')
       
       })
       
-      output$SAMmap <- renderTmap({
-        result <- generateSAM()
-        tm_shape(result)+ 
-          tm_borders(alpha = 0.5) + 
-          tm_fill(col='accSAM', 
-                  style='pretty')
-      })
+    output$SAMmap <- renderTmap({
+      map <- generateSAM()
+      map
+    })
       
 }
 
