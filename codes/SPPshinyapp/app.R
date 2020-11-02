@@ -102,6 +102,163 @@ mpsz_spatialpoint <- as(mpsz_sp, "SpatialPolygons")
 #reading OSM 
 sg_osm <- read_osm(mpsz_spatialpoint, ext=1.3)
 
+#Extracting planning areas(Tampines,Amk,Bishan,Jurong West)
+tp <- mpsz_sp[mpsz_sp@data$PLN_AREA_N == "TAMPINES",]
+amk <- mpsz_sp[mpsz_sp@data$PLN_AREA_N == "ANG MO KIO",]
+bs <- mpsz_sp[mpsz_sp@data$PLN_AREA_N == "BISHAN",]
+jw <- mpsz_sp[mpsz_sp@data$PLN_AREA_N == "JURONG WEST",]
+
+#Convert planning areas into generic spatial polygons objects
+tp_spatialpoint <- as(tp, "SpatialPolygons")
+amk_spatialpoint <- as(amk, "SpatialPolygons")
+bs_spatialpoint <- as(bs, "SpatialPolygons")
+jw_spatialpoint <- as(jw, "SpatialPolygons")
+
+#Creating owin objects based on planning areas
+tp_owin <- as(tp, "owin")
+amk_owin <- as(amk, "owin")
+bs_owin <- as(bs, "owin")
+jw_owin <- as(jw, "owin")
+sg_owin <- as(mpsz_sp, "owin")
+
+#converting facilities spatialpoints to spatstat ppp
+chas_ppp <- as(chas_spatialpoint, "ppp")
+infocomm_ppp <- as(infocomm_spatialpoint, "ppp")
+eldercare_ppp <- as(eldercare_spatialpoint, "ppp")
+
+#using jittering to better visualize overlapped facility points
+chas_ppp_jit <- rjitter(chas_ppp, retry=TRUE, nsim=1, drop=TRUE)
+infocomm_ppp_jit <- rjitter(infocomm_ppp, retry=TRUE, nsim=1, drop=TRUE)
+eldercare_ppp_jit <- rjitter(eldercare_ppp, retry=TRUE, nsim=1, drop=TRUE)
+
+#Combining Chas, Infocomm and Eldercare with study area own
+ppp_chas_tp <- chas_ppp_jit[tp_owin]
+ppp_chas_amk <- chas_ppp_jit[amk_owin]
+ppp_chas_bs <- chas_ppp_jit[bs_owin]
+ppp_chas_jw <- chas_ppp_jit[jw_owin]
+
+ppp_infocomm_tp <- infocomm_ppp_jit[tp_owin]
+ppp_infocomm_amk <- infocomm_ppp_jit[amk_owin]
+ppp_infocomm_bs <- infocomm_ppp_jit[bs_owin]
+ppp_infocomm_jw <- infocomm_ppp_jit[jw_owin]
+
+ppp_eldercare_tp <- eldercare_ppp_jit[tp_owin]
+ppp_eldercare_amk <- eldercare_ppp_jit[amk_owin]
+ppp_eldercare_bs <- eldercare_ppp_jit[bs_owin]
+ppp_eldercare_jw <- eldercare_ppp_jit[jw_owin]
+
+#Convert data to KM by rescaling
+ppp_chas_tp.km = rescale(ppp_chas_tp, 1000, "km")
+ppp_chas_amk.km = rescale(ppp_chas_amk, 1000, "km")
+ppp_chas_bs.km = rescale(ppp_chas_bs, 1000, "km")
+ppp_chas_jw.km = rescale(ppp_chas_jw, 1000, "km")
+
+ppp_infocomm_tp.km = rescale(ppp_infocomm_tp, 1000, "km")
+ppp_infocomm_amk.km = rescale(ppp_infocomm_amk, 1000, "km")
+ppp_infocomm_bs.km = rescale(ppp_infocomm_bs, 1000, "km")
+ppp_infocomm_jw.km = rescale(ppp_infocomm_jw, 1000, "km")
+
+ppp_eldercare_tp.km = rescale(ppp_eldercare_tp, 1000, "km")
+ppp_eldercare_amk.km = rescale(ppp_eldercare_amk, 1000, "km")
+ppp_eldercare_bs.km = rescale(ppp_eldercare_bs, 1000, "km")
+ppp_eldercare_jw.km = rescale(ppp_eldercare_jw, 1000, "km")
+
+#Extracting all facilities within the boundaries of the study area
+ppp_chas_mpsz = chas_ppp_jit[sg_owin]
+ppp_infocomm_mpsz = infocomm_ppp_jit[sg_owin]
+ppp_eldercare_mpsz = eldercare_ppp_jit[sg_owin]
+
+#converting to KM
+ppp_chas_mpsz.km = rescale(ppp_chas_mpsz, 1000, "km")
+ppp_infocomm_mpsz.km = rescale(ppp_infocomm_mpsz, 1000, "km")
+ppp_eldercare_mpsz.km = rescale(ppp_eldercare_mpsz, 1000, "km")
+
+#performing CSR test
+K_chas_tp = Lest(ppp_chas_tp, correction = "Ripley")
+K_chas_amk = Lest(ppp_chas_amk, correction = "Ripley")
+K_chas_bs = Lest(ppp_chas_bs, correction = "Ripley")
+K_chas_jw = Lest(ppp_chas_jw, correction = "Ripley")
+
+K_infocomm_tp = Lest(ppp_infocomm_tp, correction = "Ripley")
+K_infocomm_amk = Lest(ppp_infocomm_amk, correction = "Ripley")
+K_infocomm_bs = Lest(ppp_infocomm_bs, correction = "Ripley")
+K_infocomm_jw = Lest(ppp_infocomm_jw, correction = "Ripley")
+
+K_eldercare_tp = Lest(ppp_eldercare_tp, correction = "Ripley")
+K_eldercare_amk = Lest(ppp_eldercare_tp, correction = "Ripley")
+K_eldercare_bs = Lest(ppp_eldercare_tp, correction = "Ripley")
+K_eldercare_jw = Lest(ppp_eldercare_tp, correction = "Ripley")
+
+#Creating envelops
+#K_chas_tp.csr <- envelope(ppp_chas_tp, Kest, nsim = 99, rank = 1, glocal=TRUE)
+#K_chas_amk.csr <- envelope(ppp_chas_amk, Kest, nsim = 99, rank = 1, glocal=TRUE)
+#K_chas_bs.csr <- envelope(ppp_chas_bs, Kest, nsim = 99, rank = 1, glocal=TRUE)
+#K_chas_jw.csr <- envelope(ppp_chas_jw, Kest, nsim = 99, rank = 1, glocal=TRUE)
+
+#K_infocomm_tp.csr <- envelope(ppp_infocomm_tp, Kest, nsim = 99, rank = 1, glocal=TRUE)
+#K_infocomm_amk.csr <- envelope(ppp_infocomm_amk, Kest, nsim = 99, rank = 1, glocal=TRUE)
+#K_infocomm_bs.csr <- envelope(ppp_infocomm_bs, Kest, nsim = 99, rank = 1, glocal=TRUE)
+#K_infocomm_jw.csr <- envelope(ppp_infocomm_jw, Kest, nsim = 99, rank = 1, glocal=TRUE)
+
+#K_eldercare_tp.csr <- envelope(ppp_eldercare_tp, Kest, nsim = 99, rank = 1, glocal=TRUE)
+#K_eldercare_amk.csr <- envelope(ppp_eldercare_tp, Kest, nsim = 99, rank = 1, glocal=TRUE)
+#K_eldercare_bs.csr <- envelope(ppp_eldercare_tp, Kest, nsim = 99, rank = 1, glocal=TRUE)
+#K_eldercare_jw.csr <- envelope(ppp_eldercare_tp, Kest, nsim = 99, rank = 1, glocal=TRUE)
+
+#KDE codes start from here
+#Create a binding box for selected subzones
+tp_bb <- st_bbox(mpsz_sf %>% filter(PLN_AREA_N == "TAMPINES"))
+amk_bb <- st_bbox(mpsz_sf %>% filter(PLN_AREA_N == "ANG MO KIO"))
+bs_bb <- st_bbox(mpsz_sf %>% filter(PLN_AREA_N == "BISHAN"))
+jw_bb <- st_bbox(mpsz_sf %>% filter(PLN_AREA_N == "JURONG WEST"))
+
+#Getting osm for the indivisual planning areas
+tp_osm <- read_osm(tp_bb, ext=1.1)
+amk_osm <- read_osm(amk_bb, ext=1.1)
+bs_osm <- read_osm(bs_bb, ext=1.1)
+jw_osm <- read_osm(jw_bb, ext=1.1)
+
+#Function to plot KDE
+getPlnAreaKernelDensityMap <- function(osm, pln, ppp, ppp_str) {
+    ppp.km <- rescale(ppp, 1000, "km")
+    
+    kde <- density(ppp.km, sigma=0.20, edge=TRUE, kernel="gaussian")
+    
+    gridded_kde_bw <- as.SpatialGridDataFrame.im(kde)
+    
+    kde_bw_raster <- raster(gridded_kde_bw)
+    
+    projection(kde_bw_raster) <- crs("+init=EPSG:3414 +datum=WGS84 +units=km")
+    
+    # Plot kernel density map on openstreetmap
+    tm_shape(osm)+ 
+        tm_layout(legend.outside = TRUE, title=ppp_str)+
+        tm_rgb()+
+        tm_shape(pln)+
+        tm_borders(col = "darkblue", lwd = 2, lty="longdash")+
+        tm_shape(kde_bw_raster) + 
+        tm_raster("v", alpha=0.5,  
+                  palette = "YlOrRd")
+}
+
+#plot all KDE maps
+kde_chas_tp <- getPlnAreaKernelDensityMap(tp_osm, tp, ppp_chas_tp, "Chas Clinics in Tampines") 
+kde_infocomm_tp <- getPlnAreaKernelDensityMap(tp_osm, tp, ppp_infocomm_tp, "Infocomm Centres in Tampines")
+kde_eldercare_tp <- getPlnAreaKernelDensityMap(tp_osm, tp, ppp_eldercare_tp, "Eldercare Services in Tampines")
+
+kde_chas_amk <- getPlnAreaKernelDensityMap(amk_osm, amk, ppp_chas_amk, "Chas Clinics in Ang Mo Kio") 
+kde_infocomm_amk <- getPlnAreaKernelDensityMap(amk_osm, amk, ppp_infocomm_amk, "Infocomm Centres in Ang Mo Kio")
+kde_eldercare_amk <- getPlnAreaKernelDensityMap(amk_osm, amk, ppp_eldercare_amk, "Eldercare Services in Ang Mo Kio")
+
+kde_chas_bs <- getPlnAreaKernelDensityMap(bs_osm, bs, ppp_chas_bs, "Chas Clinics in Bishan") 
+kde_infocomm_bs <- getPlnAreaKernelDensityMap(bs_osm, bs, ppp_infocomm_bs, "Infocomm Centres in Bishan")
+kde_eldercare_bs <- getPlnAreaKernelDensityMap(bs_osm, bs, ppp_eldercare_bs, "Eldercare Services in Bishan")
+
+kde_chas_jw <- getPlnAreaKernelDensityMap(jw_osm, jw, ppp_chas_jw, "Chas Clinics in Jurong West") 
+kde_infocomm_jw <- getPlnAreaKernelDensityMap(jw_osm, jw, ppp_infocomm_jw, "Infocomm Centres in Jurong West")
+kde_eldercare_jw <- getPlnAreaKernelDensityMap(jw_osm, jw, ppp_eldercare_jw, "Eldercare Services in Jurong West")
+
+
 #function for creating boxmap
 boxbreaks <- function(v,mult=1.5) {
     qv <- unname(quantile(v))
@@ -147,29 +304,41 @@ boxmap <- function(vnam,df,legtitle=NA,mtitle="Box Map",mult=1.5){
 
 
 
-
-ui <- fluidPage(
-    fixedRow(
-        column(12,
-               titlePanel("Spatial Point Pattern Analysis"),
-               fixedRow(
-                   column(2,
-                          selectInput('planningarea', 'Select Planning Area', choices = c("Tampines", "Ang Mo Kio", "Bishan", "Jurong West"))  
-                    ),
-                   column(4,
-                          tmapOutput("boxplot")
-                    ),
-                   column(4,
-                          tmapOutput("sdplot")
-                )
-            )
-        )
-    )
+ui <- navbarPage("IS415 Team2",
+           tabPanel("EDA",
+                    fixedRow(
+                        column(8,
+                               titlePanel("Spatial Point Pattern Analysis"),
+                               fixedRow(
+                                   column(6,
+                                          tmapOutput("boxplot")
+                                   ),
+                                   column(6,
+                                          tmapOutput("sdplot")
+                                   )
+                               )
+                        )
+                    )),
+           tabPanel("Kernal Density Plots",
+                    fixedRow(
+                        column(12,
+                               titlePanel("Kernal Density Plots"),
+                               fixedRow(
+                                   column(2,
+                                          selectInput('planningarea', 'Select Planning Area', choices = c("Tampines", "Ang Mo Kio", "Bishan", "Jurong West"))  
+                                   ),
+                                   column(4
+                                          
+                                   ),
+                                   column(4
+                                   )
+                               )
+                        )
+                    )),
+           tabPanel("Accessibility")
 )
 
 
-
-# Define server logic required to draw a histogram
 server <- function(input, output) {
 
     output$boxplot <- renderTmap({
