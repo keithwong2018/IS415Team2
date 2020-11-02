@@ -26,75 +26,77 @@ popdata2019 <- popdata %>%
     summarise(elderly_count = sum(resident_count)) %>%
     ungroup() %>%
     spread(age_group, elderly_count) %>%
-    mutate(`elderly_count` = `65_to_69` + `70_to_74` + `75_to_79` + `80_to_84` + `85_to_89` + `90_and_over`)
+    mutate(elderly_count = `65_to_69` + `70_to_74` + `75_to_79` + `80_to_84` + `85_to_89` + `90_and_over`)
 
 popdata2019 <- mutate_at(popdata2019, .vars = c("subzone", "planning_area"), .funs=toupper)
+
+#Importing mp14 subzone data
+mpsz_sf <- st_read(dsn='data', layer='MP14_SUBZONE_WEB_PL')
+mpsz_sf <- mpsz_sf %>%
+  dplyr::select(SUBZONE_N, PLN_AREA_N, REGION_N, X_ADDR, Y_ADDR, SHAPE_Leng, SHAPE_Area, geometry)
+mpsz_sf <- st_transform(mpsz_sf, 3414)
+st_crs(mpsz_sf)
+
 
 #Importing Eldercare Data
 eldercare_sf <- st_read(dsn='data', layer='ELDERCARE')
 
 eldercare_sf <- eldercare_sf %>%
-    mutate(label = "Eldercare centres") 
-
+  dplyr::select(NAME, ADDRESSPOS, ADDRESSSTR, X_ADDR, Y_ADDR, geometry) %>%
+  mutate(label = "Eldercare centres") %>%
+  mutate(capacity = 1)
 eldercare_sf <- st_transform(eldercare_sf, 3414)
-
 st_crs(eldercare_sf)
-
-eldercare_sp <- as_Spatial(eldercare_sf)
-eldercare_spatialpoint <- as(eldercare_sp, "SpatialPoints")
 
 #Importing Silverincomm Data
 infocomm_sf <- st_read(dsn='data', layer='SILVERINFOCOMM')
-
 infocomm_sf <- infocomm_sf %>%
-    mutate(label = "Silver Infocomm Junc")
-
+  dplyr::select(NAME, ADDRESSBUI, ADDRESSPOS, X_ADDR, Y_ADDR, geometry) %>%
+  mutate(label = "Silver Infocomm Junc") %>%
+  mutate(capacity = 1)
 infocomm_sf <- st_transform(infocomm_sf, 3414)
-
 st_crs(infocomm_sf)
-
-infocomm_sp <- as_Spatial(infocomm_sf)
-infocomm_spatialpoint <- as(infocomm_sp, "SpatialPoints")
 
 #Importing chas clinic data
 chas_sf <- st_read(dsn='data/chas-clinics-kml.kml')
-
 chas_sf <- chas_sf %>%
     mutate(label = "Chas Clinics") %>%
     mutate(capacity = 1)
-
 chas_sf <- st_transform(chas_sf, 3414)
-
 st_crs(chas_sf)
-
-chas_sp <- as_Spatial(chas_sf)
-chas_spatialpoint <- as(chas_sp, "SpatialPoints")
-
-#Importing mp14 subzone data
-mpsz_sf <- st_read(dsn='data', layer='MP14_SUBZONE_WEB_PL')
-
-mpsz_sf <- mpsz_sf %>%
-    dplyr::select(SUBZONE_N, PLN_AREA_N, REGION_N, X_ADDR, Y_ADDR, SHAPE_Leng, SHAPE_Area, geometry)
-
-mpsz_sf <- st_transform(mpsz_sf, 3414)
-
-st_crs(mpsz_sf)
 
 #Importing sg costal outline
 sg <- readOGR(dsn = "data", layer="CostalOutline")
 sg_spatialpoint <- as(sg, "SpatialPolygons")
 
+
+
+
+#Preparing mpsz demand
 mpsz_demand <- left_join(mpsz_sf, popdata2019, by=c('PLN_AREA_N' = 'planning_area', 'SUBZONE_N' = 'subzone'))
 summary(mpsz_demand)
 
 mpsz_demand_sp <- as_Spatial(mpsz_demand)
 mpsz_demand_spatialpoint <- as(mpsz_demand_sp, "SpatialPolygons")
 
-#Calculating no of facilities in each subzone
-mpsz_demand$`chas_count` <- lengths(st_intersects(mpsz_sf,chas_sf))
-mpsz_demand$`eldercare_count` <- lengths(st_intersects(mpsz_sf,eldercare_sf))
-mpsz_demand$`infocomm_count` <- lengths(st_intersects(mpsz_sf,infocomm_sf))
 
+
+#Further wrangle the data 
+eldercare_sf <- st_join(eldercare_sf, mpsz_sf, join=st_intersects)
+eldercare_sp <- as_Spatial(eldercare_sf)
+eldercare_spatialpoint <- as(eldercare_sp, "SpatialPoints")
+
+infocomm_sf <- st_join(infocomm_sf, mpsz_sf, join=st_intersects)
+infocomm_sp <- as_Spatial(infocomm_sf)
+infocomm_spatialpoint <- as(infocomm_sp, "SpatialPoints")
+
+chas_sf <- st_join(chas_sf, mpsz_sf, join=st_intersects)
+chas_sp <- as_Spatial(chas_sf)
+chas_spatialpoint <- as(chas_sp, "SpatialPoints")
+
+#Creating centroids
+centroids <- st_centroid(mpsz_sf)
+centroids <- st_join(centroids, mpsz_demand, join=st_intersects)
 #Convering sf_mpsz to sp_mpsz
 mpsz_sp <- as_Spatial(mpsz_sf)
 mpsz_spatialpoint <- as(mpsz_sp, "SpatialPolygons")
@@ -107,6 +109,35 @@ tp <- mpsz_sp[mpsz_sp@data$PLN_AREA_N == "TAMPINES",]
 amk <- mpsz_sp[mpsz_sp@data$PLN_AREA_N == "ANG MO KIO",]
 bs <- mpsz_sp[mpsz_sp@data$PLN_AREA_N == "BISHAN",]
 jw <- mpsz_sp[mpsz_sp@data$PLN_AREA_N == "JURONG WEST",]
+
+tp_sf <- mpsz_sf[mpsz_sf$PLN_AREA_N == "TAMPINES",]
+amk_sf <- mpsz_sf[mpsz_sf$PLN_AREA_N == "ANG MO KIO",]
+bs_sf <- mpsz_sf[mpsz_sf$PLN_AREA_N == "BISHAN",]
+jw_sf <- mpsz_sf[mpsz_sf$PLN_AREA_N == "JURONG WEST",]
+
+#Extracting centroids by selected planning areas
+tp_centroids <- centroids[centroids$PLN_AREA_N == 'TAMPINES'] 
+amk_centroids <- centroids[centroids$PLN_AREA_N == 'ANG MO KIO'] 
+bs_centroids <- centroids[centroids$PLN_AREA_N == 'BISHAN'] 
+jw_centroids <- centroids[centroids$PLN_AREA_N == 'JURONG WEST'] 
+
+#Extracting Eldercare, Infocomm, CHAS within study area
+tp_eldercare_sf <- eldercare_sf %>% filter(PLN_AREA_N == 'TAMPINES')
+amk_eldercare_sf <- eldercare_sf %>% filter(PLN_AREA_N == 'ANG MO KIO')
+bs_eldercare_sf <- eldercare_sf %>% filter(PLN_AREA_N == 'BISHAN')
+jw_eldercare_sf <- eldercare_sf %>% filter(PLN_AREA_N == 'JURONG WEST')
+
+tp_infocomm_sf <- infocomm_sf %>% filter(PLN_AREA_N == 'TAMPINES')
+amk_infocomm_sf <- infocomm_sf %>% filter(PLN_AREA_N == 'ANG MO KIO')
+bs_infocomm_sf <- infocomm_sf %>% filter(PLN_AREA_N == 'BISHAN')
+jw_infocomm_sf <- infocomm_sf %>% filter(PLN_AREA_N == 'JURONG WEST')
+
+tp_chas_sf <- chas_sf %>% filter(PLN_AREA_N == 'TAMPINES')
+amk_chas_sf <- chas_sf %>% filter(PLN_AREA_N == 'ANG MO KIO')
+bs_chas_sf <- chas_sf %>% filter(PLN_AREA_N == 'BISHAN')
+jw_chas_sf <- chas_sf %>% filter(PLN_AREA_N == 'JURONG WEST')
+
+
 
 #Convert planning areas into generic spatial polygons objects
 tp_spatialpoint <- as(tp, "SpatialPolygons")
@@ -302,6 +333,65 @@ boxmap <- function(vnam,df,legtitle=NA,mtitle="Box Map",mult=1.5){
         tm_layout(title = mtitle, title.position = c("right","bottom"))
 }
 
+#Accessibility Analysis 
+#Creating Distance Matrix
+tp_eldercare_dismat <- CreateDistMatrix(knownpts=tp_centroids, unknownpts=tp_eldercare_sf, longlat=FALSE)
+amk_eldercare_dismat <- CreateDistMatrix(knownpts=amk_centroids, unknownpts=amk_eldercare_sf, longlat=FALSE)
+bs_eldercare_dismat <- CreateDistMatrix(knownpts=bs_centroids, unknownpts=bs_eldercare_sf, longlat=FALSE)
+jw_eldercare_dismat <- CreateDistMatrix(knownpts=jw_centroids, unknownpts=jw_eldercare_sf, longlat=FALSE)
+
+tp_infocomm_dismat <- CreateDistMatrix(knownpts=tp_centroids, unknownpts=tp_infocomm_sf, longlat=FALSE)
+amk_infocomm_dismat <- CreateDistMatrix(knownpts=amk_centroids, unknownpts=amk_infocomm_sf, longlat=FALSE)
+bs_infocomm_dismat <- CreateDistMatrix(knownpts=bs_centroids, unknownpts=bs_infocomm_sf, longlat=FALSE)
+jw_infocomm_dismat <- CreateDistMatrix(knownpts=jw_centroids, unknownpts=jw_infocomm_sf, longlat=FALSE)
+
+tp_chas_dismat <- CreateDistMatrix(knownpts=tp_centroids, unknownpts=tp_chas_sf, longlat=FALSE)
+amk_chas_dismat <- CreateDistMatrix(knownpts=amk_centroids, unknownpts=amk_chas_sf, longlat=FALSE)
+bs_chas_dismat <- CreateDistMatrix(knownpts=bs_centroids, unknownpts=bs_chas_sf, longlat=FALSE)
+jw_chas_dismat <- CreateDistMatrix(knownpts=jw_centroids, unknownpts=jw_chas_sf, longlat=FALSE)
+
+#Convert the unit from m to km
+tp_eldercare_dismat <- as.matrix(tp_eldercare_dismat/1000)
+amk_eldercare_dismat <- as.matrix(amk_eldercare_dismat/1000)
+bs_eldercare_dismat <- as.matrix(bs_eldercare_dismat/1000)
+jw_eldercare_dismat <- as.matrix(jw_eldercare_dismat/1000)
+
+tp_infocomm_dismat <- as.matrix(tp_infocomm_dismat/1000)
+amk_infocomm_dismat <- as.matrix(amk_infocomm_dismat/1000)
+bs_infocomm_dismat <- as.matrix(bs_infocomm_dismat/1000)
+jw_infocomm_dismat <- as.matrix(jw_infocomm_dismat/1000)
+
+tp_chas_dismat <- as.matrix(tp_chas_dismat/1000)
+amk_chas_dismat <- as.matrix(amk_chas_dismat/1000)
+bs_chas_dismat <- as.matrix(bs_chas_dismat/1000)
+jw_chas_dismat <- as.matrix(jw_chas_dismat/1000)
+
+
+#Function to compute accessibility values & Visualising Output
+getPA_SAM <- function(demand, supply, dist_matrix, sf) {
+  
+  #Compute accessibility matrix
+  temp <- data.frame(ac(demand$elderly_count,
+                        supply$capacity, 
+                        dist_matrix,
+                        d0 = 30, 
+                        power = 2, 
+                        family = 'SAM'))
+  colnames(temp) <- 'accSAM'
+  temp <- tibble::as_tibble(temp)
+  result <- bind_cols(sf, temp)
+  
+  
+  #Plot the output in a map
+  tm_shape(result)+ 
+    tm_borders(alpha = 0.5) + 
+    tm_fill(col='accSAM', 
+            style='pretty')
+}
+
+
+
+
 
 
 ui <- navbarPage("IS415 Team2",
@@ -310,10 +400,10 @@ ui <- navbarPage("IS415 Team2",
                         column(8,
                                titlePanel("Spatial Point Pattern Analysis"),
                                fixedRow(
-                                   column(6,
+                                   column(10,
                                           tmapOutput("boxplot")
                                    ),
-                                   column(6,
+                                   column(10,
                                           tmapOutput("sdplot")
                                    )
                                )
@@ -335,7 +425,22 @@ ui <- navbarPage("IS415 Team2",
                                )
                         )
                     )),
-           tabPanel("Accessibility")
+           tabPanel("Accessibility", 
+                    fixedRow(
+                      column(12, 
+                             titlePanel('Geographical Accessibility by Planning Area'), 
+                             fixedRow(), 
+                             fixedRow(
+                               column(2, selectInput('planningarea', 'Select Planning Area', choices = c('Tampines', 'Ang Mo Kio', 'Bishan', 'Jurong West'))
+                                      ), 
+                               column(6
+                                      
+                                      ), 
+                               column(6
+                                      ) 
+                             )
+                             )
+                    ))
 )
 
 

@@ -74,7 +74,12 @@ eldercare_sf <- eldercare_sf %>%
   dplyr::select(NAME, ADDRESSPOS, ADDRESSSTR, X_ADDR, Y_ADDR, geometry) %>%
   mutate(label = "Eldercare centres") %>%
   mutate(capacity = 1)
-  
+eldercare_sf <- st_join(mpsz_sf, eldercare_sf, join=st_intersects)
+```
+
+```{r}
+tp_eldercare_sf <- filter(eldercare_sf$PLN_AREA_N == 'TAMPINES')
+tp_eldercare_sf
 ```
 
 ```{r}
@@ -374,6 +379,13 @@ centroids_supply <- st_join(centroids, mpsz_supply, join=st_intersects) %>%
 
 ```{r}
 glimpse(centroids_supply)
+```
+
+
+
+```{r}
+temp <- st_join(eldercare_sf, mpsz_sf, join=st_intersects)
+glimpse(temp)
 ```
 
 
