@@ -27,6 +27,22 @@ for (p in packages){
 popdata <- read_csv('data/aspatial/planning-area-subzone-age-group-sex-and-type-of-dwelling-june-2011-2019.csv')
 ```
 
+```{r}
+popdata2019 <- popdata %>%
+  filter(year == 2019) %>%
+  filter(age_group == "65_to_69" | age_group == "70_to_74" | age_group == '75_to_79' | age_group == '80_to_84' | age_group == '85_to_89' | age_group == '90_and_over') %>%
+  group_by(planning_area, subzone, age_group) %>%
+  summarise(elderly_count = sum(resident_count)) %>%
+  ungroup() %>%
+  spread(age_group, elderly_count) %>%
+  mutate(`elderly_count` = `65_to_69` + `70_to_74` + `75_to_79` + `80_to_84` + `85_to_89` + `90_and_over`)
+
+popdata2019 <- mutate_at(popdata2019, .vars = c("subzone", "planning_area"), .funs=toupper)
+```
+
+```{r}
+glimpse(popdata2019)
+```
 
 ## Eldercare 
 ```{r}
@@ -259,4 +275,22 @@ getKernelDensityMap <- function(ppp, ppp_str) {
 
 ```{r}
 getKernelDensityMap(chas_ppp, "Chas Clinics KDE")
+```
+
+
+```{r}
+require(mgcv)
+boxmap <- function(vnam,df,legtitle=NA,mtitle="Box Map",mult=1.5){
+  var <- get.var(vnam,df)
+  bb <- boxbreaks(var)
+  tm_shape(df) +
+    tm_fill(vnam,title=legtitle,breaks=bb,palette="-RdBu",
+            labels = c("lower outlier", "< 25%", "25% - 50%", "50% - 75%","> 75%", "upper outlier"))
+  tm_borders() +
+  tm_layout(title=mtitle, title.position = c("right","bottom"))
+}
+```
+
+```{r}
+boxmap("age_group", popdata2019)
 ```
