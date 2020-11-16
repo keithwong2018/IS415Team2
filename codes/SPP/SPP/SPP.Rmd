@@ -1,0 +1,643 @@
+---
+title: "spatial_point_pattern"
+author: "Keith Wong"
+date: "10/30/2020"
+output: 
+  html_document: 
+    toc: true
+    toc_float: true
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load Packages
+```{r}
+packages = c('rgdal', 'sf', 'tmap', 'tidyverse', 'sp', 'rgeos','maptools', 'raster', 'spatstat', 'tmaptools', 'spdep', 'OpenStreetMap')
+for (p in packages){
+  if (!require(p, character.only = T)){
+    install.packages(p)
+  }
+  library(p, character.only = T)
+}
+```
+
+```{r}
+dataSet <- data.frame(respVec = c("rate1", "rate2"),group = factor(c("Exposed", "Control")),se = c("e1", "se2"))
+dataSet['respVec']
+```
+
+```{r}
+popdata <- read_csv('data/planning-area-subzone-age-group-sex-and-type-of-dwelling-june-2011-2019.csv')
+```
+
+```{r}
+popdata2019 <- popdata %>%
+  filter(year == 2019) %>%
+  filter(age_group == "65_to_69" | age_group == "70_to_74" | age_group == '75_to_79' | age_group == '80_to_84' | age_group == '85_to_89' | age_group == '90_and_over') %>%
+  group_by(planning_area, subzone, age_group) %>%
+  summarise(elderly_count = sum(resident_count)) %>%
+  ungroup() %>%
+  spread(age_group, elderly_count) %>%
+  mutate(`elderly_count` = `65_to_69` + `70_to_74` + `75_to_79` + `80_to_84` + `85_to_89` + `90_and_over`)
+
+popdata2019 <- mutate_at(popdata2019, .vars = c("subzone", "planning_area"), .funs=toupper)
+```
+
+
+write.csv(popdata2019,"C:\\Users\\Keith\\Desktop\\popdata2019.csv", row.names = FALSE)
+
+
+## Eldercare 
+```{r}
+eldercare_sf <- st_read(dsn='data', layer='ELDERCARE')
+```
+
+```{r}
+eldercare_sf <- eldercare_sf %>%
+  mutate(label = "Eldercare centres") 
+```
+
+Assign EPSG
+```{r}
+eldercare_sf <- st_transform(eldercare_sf, 3414)
+```
+
+```{r}
+st_crs(eldercare_sf)
+```
+
+Convert sf to sp
+```{r}
+eldercare_sp <- as_Spatial(eldercare_sf)
+eldercare_spatialpoint <- as(eldercare_sp, "SpatialPoints")
+```
+
+## Silver Infocomm
+```{r}
+infocomm_sf <- st_read(dsn='data', layer='SILVERINFOCOMM')
+```
+
+```{r}
+infocomm_sf <- infocomm_sf %>%
+  mutate(label = "Silver Infocomm Junc")
+```
+
+Assign EPSG
+```{r}
+infocomm_sf <- st_transform(infocomm_sf, 3414)
+```
+
+```{r}
+st_crs(infocomm_sf)
+```
+
+Convert sf to sp
+```{r}
+infocomm_sp <- as_Spatial(infocomm_sf)
+infocomm_spatialpoint <- as(infocomm_sp, "SpatialPoints")
+```
+
+## CHAS Clinics
+```{r}
+chas_sf <- st_read(dsn='data/chas-clinics-kml.kml')
+```
+
+```{r}
+chas_sf <- chas_sf %>%
+  mutate(label = "Chas Clinics") %>%
+  mutate(capacity = 1)
+```
+
+Assign EPSG
+```{r}
+chas_sf <- st_transform(chas_sf, 3414)
+```
+
+```{r}
+st_crs(chas_sf)
+```
+
+Convert sf to sp
+```{r}
+chas_sp <- as_Spatial(chas_sf)
+chas_spatialpoint <- as(chas_sp, "SpatialPoints")
+```
+
+
+## MP_14 Subzone Data
+```{r}
+mpsz_sf <- st_read(dsn='data', layer='MP14_SUBZONE_WEB_PL')
+```
+
+```{r}
+mpsz_sf <- mpsz_sf %>%
+  dplyr::select(SUBZONE_N, PLN_AREA_N, REGION_N, X_ADDR, Y_ADDR, SHAPE_Leng, SHAPE_Area, geometry)
+```
+
+```{r}
+planningareas <- mpsz_sf["PLN_AREA_N"]
+planningareas
+```
+
+Assign EPSG
+```{r}
+mpsz_sf <- st_transform(mpsz_sf, 3414)
+```
+
+```{r}
+st_crs(mpsz_sf)
+```
+
+```{r}
+centroids <- st_centroid(mpsz_sf)
+```
+
+## Coastal outline
+```{r}
+sg <- readOGR(dsn = "data", layer="CostalOutline")
+sg_spatialpoint <- as(sg, "SpatialPolygons")
+```
+
+Joining popdata2019 and mpsz_sf
+```{r}
+mpsz_demand <- left_join(mpsz_sf, popdata2019, by=c('PLN_AREA_N' = 'planning_area', 'SUBZONE_N' = 'subzone'))
+summary(mpsz_demand)
+```
+
+
+Calculating Chas Clinics count
+```{r}
+mpsz_demand$`chas_count` <- lengths(st_intersects(mpsz_sf,chas_sf))
+```
+
+Calculating eldercare count
+```{r}
+mpsz_demand$`eldercare_count` <- lengths(st_intersects(mpsz_sf,eldercare_sf))
+```
+
+Calculating infocomm count
+```{r}
+mpsz_demand$`infocomm_count` <- lengths(st_intersects(mpsz_sf,infocomm_sf))
+```
+
+```{r}
+mpsz_demand$Area <- mpsz_demand %>%
+  st_area()
+```
+
+```{r}
+mpsz_demand <- mpsz_demand %>%
+  mutate(`Elderly_Density` = (`elderly_count`/ Area) * 1000000) %>%
+  mutate(`Chas_Density` = `elderly_count` / `chas_count`) %>%
+  mutate(`Eldercare_Density` = `elderly_count` / `eldercare_count`) %>%
+  mutate(`Infocomm_Density` = `elderly_count` / `infocomm_count`)
+```
+
+```{r}
+mpsz_demand_sp <- as_Spatial(mpsz_demand)
+mpsz_demand_spatialpoint <- as(mpsz_demand_sp, "SpatialPolygons")
+```
+
+Convert sf to sp
+```{r}
+mpsz_sp <- as_Spatial(mpsz_sf)
+mpsz_spatialpoint <- as(mpsz_sp, "SpatialPolygons")
+```
+
+```{r}
+sg_osm <- read_osm(mpsz_spatialpoint, ext=1.3)
+```
+
+Class interval for boxmap
+```{r}
+boxbreaks <- function(v,mult=1.5) {
+  qv <- unname(quantile(v))
+  iqr <- qv[4] - qv[2]
+  upfence <- qv[4] + mult * iqr
+  lofence <- qv[2] - mult * iqr
+  # initialize break points vector. might need more length for bigger data
+  bb <- vector(mode="numeric",length=7)
+  # logic for lower and upper fences
+  if (lofence < qv[1]) { # no lower outliers
+    bb[1] <- lofence
+    bb[2] <- floor(qv[1])
+  } else {
+    bb[2] <- lofence
+    bb[1] <- qv[1]
+  }
+  if (upfence > qv[5]) { # no upper outliers
+    bb[7] <- upfence
+    bb[6] <- ceiling(qv[5])
+  } else {
+    bb[6] <- upfence
+    bb[7] <- qv[5]
+  }
+  bb[3:5] <- qv[2:4]
+  return(bb)
+}
+```
+
+```{r}
+get.var <- function(vname,df) {
+  v <- df[vname] %>% st_set_geometry(NULL)
+  v <- unname(v[,1])
+  return(v)
+}
+```
+
+```{r}
+boxmap <- function(vnam,df,legtitle=NA,mtitle="Box Map",mult=1.5){
+  var <- get.var(vnam,df)
+  bb <- boxbreaks(var)
+  tm_shape(df) +
+    tm_fill(vnam,title=legtitle,breaks=bb,palette="-RdBu",
+            labels = c("lower outlier", "< 25%", "25% - 50%", "50% - 75%","> 75%", "upper outlier")) +
+  tm_borders() +
+  tm_layout(title = mtitle, title.position = c("right","bottom"))
+}
+```
+
+```{r}
+boxmap("elderly_count", mpsz_demand, mtitle="Elderly Distribution")
+boxmap("Elderly_Density", mpsz_demand, mtitle="Elderly Distribution")
+```
+Demand and supply of eldercare facilities
+```{r}
+tmap_mode("view")
+tm_shape(mpsz_demand) + 
+  tm_fill(c("elderly_count"),
+          title = "Elderly Population",
+          breaks = c(0, 2500 ,5000, 7500, 10000, 12500, 15000, 17500, 20000),
+          palette = "Blues",
+          popup.vars=c("Subzone Name"="SUBZONE_N", 
+                       "Planning Area Name"="PLN_AREA_N", 
+                       "Elderly Population"="elderly_count"),
+          showNA = FALSE) +
+  tm_borders(lwd = 0.1,  alpha = 1) +
+  tm_shape(chas_sf) + tm_dots("red") +
+  tm_shape(eldercare_sf) + tm_dots("blue")+
+  tm_shape(infocomm_sf) + tm_dots("green") 
+```
+
+Extracting study areas(Tampines, Ang Mo Kio, Bishan, Jurong West) in spatialpoint dataframe
+```{r}
+tp <- mpsz_sp[mpsz_sp@data$PLN_AREA_N == "TAMPINES",]
+amk <- mpsz_sp[mpsz_sp@data$PLN_AREA_N == "ANG MO KIO",]
+bs <- mpsz_sp[mpsz_sp@data$PLN_AREA_N == "BISHAN",]
+jw <- mpsz_sp[mpsz_sp@data$PLN_AREA_N == "JURONG WEST",]
+
+plot(tp)
+```
+
+Convert them into generic spatialpolygons objects
+```{r}
+tp_spatialpoint <- as(tp, "SpatialPolygons")
+amk_spatialpoint <- as(amk, "SpatialPolygons")
+bs_spatialpoint <- as(bs, "SpatialPolygons")
+jw_spatialpoint <- as(jw, "SpatialPolygons")
+```
+
+creating owin objects based on planningareas
+```{r}
+tp_owin <- as(tp, "owin")
+amk_owin <- as(amk, "owin")
+bs_owin <- as(bs, "owin")
+jw_owin <- as(jw, "owin")
+```
+
+
+Converting spatialpoints to spatstat ppp
+
+```{r}
+chas_ppp <- as(chas_spatialpoint, "ppp")
+infocomm_ppp <- as(infocomm_spatialpoint, "ppp")
+eldercare_ppp <- as(eldercare_spatialpoint, "ppp")
+```
+
+using jittering to better visualize overlapped data
+```{r}
+chas_ppp_jit <- rjitter(chas_ppp, retry=TRUE, nsim=1, drop=TRUE)
+infocomm_ppp_jit <- rjitter(infocomm_ppp, retry=TRUE, nsim=1, drop=TRUE)
+eldercare_ppp_jit <- rjitter(eldercare_ppp, retry=TRUE, nsim=1, drop=TRUE)
+```
+
+Combining Chas, Infocomm and Eldercare
+```{r}
+ppp_chas_tp <- chas_ppp_jit[tp_owin]
+ppp_chas_amk <- chas_ppp_jit[amk_owin]
+ppp_chas_bs <- chas_ppp_jit[bs_owin]
+ppp_chas_jw <- chas_ppp_jit[jw_owin]
+
+ppp_infocomm_tp <- infocomm_ppp_jit[tp_owin]
+ppp_infocomm_amk <- infocomm_ppp_jit[amk_owin]
+ppp_infocomm_bs <- infocomm_ppp_jit[bs_owin]
+ppp_infocomm_jw <- infocomm_ppp_jit[jw_owin]
+
+ppp_eldercare_tp <- eldercare_ppp_jit[tp_owin]
+ppp_eldercare_amk <- eldercare_ppp_jit[amk_owin]
+ppp_eldercare_bs <- eldercare_ppp_jit[bs_owin]
+ppp_eldercare_jw <- eldercare_ppp_jit[jw_owin]
+```
+
+Convert data to KM by rescaling
+```{r}
+ppp_chas_tp.km = rescale(ppp_chas_tp, 1000, "km")
+ppp_chas_amk.km = rescale(ppp_chas_amk, 1000, "km")
+ppp_chas_bs.km = rescale(ppp_chas_bs, 1000, "km")
+ppp_chas_jw.km = rescale(ppp_chas_jw, 1000, "km")
+
+ppp_infocomm_tp.km = rescale(ppp_infocomm_tp, 1000, "km")
+ppp_infocomm_amk.km = rescale(ppp_infocomm_amk, 1000, "km")
+ppp_infocomm_bs.km = rescale(ppp_infocomm_bs, 1000, "km")
+ppp_infocomm_jw.km = rescale(ppp_infocomm_jw, 1000, "km")
+
+ppp_eldercare_tp.km = rescale(ppp_eldercare_tp, 1000, "km")
+ppp_eldercare_amk.km = rescale(ppp_eldercare_amk, 1000, "km")
+ppp_eldercare_bs.km = rescale(ppp_eldercare_bs, 1000, "km")
+ppp_eldercare_jw.km = rescale(ppp_eldercare_jw, 1000, "km")
+```
+
+
+create owin objects that is required by spatstat.
+```{r}
+sg_owin <- as(mpsz_sp, "owin")
+sg_owin
+```
+Extracting all facilities within the boundaries of the study area
+```{r}
+ppp_chas_mpsz = chas_ppp_jit[sg_owin]
+ppp_infocomm_mpsz = infocomm_ppp_jit[sg_owin]
+ppp_eldercare_mpsz = eldercare_ppp_jit[sg_owin]
+```
+
+Rescaling in KM
+```{r}
+ppp_chas_mpsz.km = rescale(ppp_chas_mpsz, 1000, "km")
+ppp_infocomm_mpsz.km = rescale(ppp_infocomm_mpsz, 1000, "km")
+ppp_eldercare_mpsz.km = rescale(ppp_eldercare_mpsz, 1000, "km")
+```
+
+# Spatial point pattern analysis for chas clinics
+
+In order to confirm the spatial patterns for chas clinics, we will have to conduct a hypothesis test for all subzones and chas clinic locations. 
+
+H0 = The distribution of chas clinics are randomly distributed. H1= The distribution of chas clinics are not randomly distributed. 
+
+The null hypothesis will be rejected if p-value is smaller than alpha < 0.001i
+
+converting spatialdata into ppp object format
+
+
+performing CSR test
+```{r}
+K_chas_tp = Lest(ppp_chas_tp, correction = "Ripley")
+K_chas_amk = Lest(ppp_chas_amk, correction = "Ripley")
+K_chas_bs = Lest(ppp_chas_bs, correction = "Ripley")
+K_chas_jw = Lest(ppp_chas_jw, correction = "Ripley")
+
+K_infocomm_tp = Lest(ppp_infocomm_tp, correction = "Ripley")
+K_infocomm_amk = Lest(ppp_infocomm_amk, correction = "Ripley")
+K_infocomm_bs = Lest(ppp_infocomm_bs, correction = "Ripley")
+K_infocomm_jw = Lest(ppp_infocomm_jw, correction = "Ripley")
+
+K_eldercare_tp = Lest(ppp_eldercare_tp, correction = "Ripley")
+K_eldercare_amk = Lest(ppp_eldercare_tp, correction = "Ripley")
+K_eldercare_bs = Lest(ppp_eldercare_tp, correction = "Ripley")
+K_eldercare_jw = Lest(ppp_eldercare_tp, correction = "Ripley")
+```
+
+```{r}
+K_chas_tp.csr <- envelope(ppp_chas_tp, Kest, nsim = 99, rank = 1, glocal=TRUE)
+K_chas_amk.csr <- envelope(ppp_chas_amk, Kest, nsim = 99, rank = 1, glocal=TRUE)
+K_chas_bs.csr <- envelope(ppp_chas_bs, Kest, nsim = 99, rank = 1, glocal=TRUE)
+K_chas_jw.csr <- envelope(ppp_chas_jw, Kest, nsim = 99, rank = 1, glocal=TRUE)
+
+K_infocomm_tp.csr <- envelope(ppp_infocomm_tp, Kest, nsim = 99, rank = 1, glocal=TRUE)
+K_infocomm_amk.csr <- envelope(ppp_infocomm_amk, Kest, nsim = 99, rank = 1, glocal=TRUE)
+K_infocomm_bs.csr <- envelope(ppp_infocomm_bs, Kest, nsim = 99, rank = 1, glocal=TRUE)
+K_infocomm_jw.csr <- envelope(ppp_infocomm_jw, Kest, nsim = 99, rank = 1, glocal=TRUE)
+
+K_eldercare_tp.csr <- envelope(ppp_eldercare_tp, Kest, nsim = 99, rank = 1, glocal=TRUE)
+K_eldercare_amk.csr <- envelope(ppp_eldercare_tp, Kest, nsim = 99, rank = 1, glocal=TRUE)
+K_eldercare_bs.csr <- envelope(ppp_eldercare_tp, Kest, nsim = 99, rank = 1, glocal=TRUE)
+K_eldercare_jw.csr <- envelope(ppp_eldercare_tp, Kest, nsim = 99, rank = 1, glocal=TRUE)
+```
+```{r}
+par(mfrow=c(4,3))
+par(mar = rep(3, 4))
+
+plot(K_chas_tp, . - r ~ r, 
+     xlab="d", ylab="L(d)-r", 
+     main="Chas Clinics in Tampines")
+plot(K_infocomm_tp.csr, . - r ~ r, 
+     xlab="d", ylab="L(d)-r", 
+     main="Silver infocomm centres in Tampines")
+plot(K_eldercare_tp.csr, . - r ~ r, 
+     xlab="d", ylab="L(d)-r", 
+     main="Eldercare services in Tampines")
+
+plot(K_chas_amk.csr, . - r ~ r, 
+     xlab="d", ylab="L(d)-r", 
+     main="Chas Clinics in Ang Mo Kio")
+plot(K_infocomm_amk.csr, . - r ~ r, 
+     xlab="d", ylab="L(d)-r", 
+     main="Silver infocomm centres in Ang Mo Kio")
+plot(K_eldercare_amk.csr, . - r ~ r, 
+     xlab="d", ylab="L(d)-r", 
+     main="Eldercare services in Ang Mo Kio")
+
+plot(K_chas_bs.csr, . - r ~ r, 
+     xlab="d", ylab="L(d)-r", 
+     main="Chas Clinics in Bishan")
+plot(K_infocomm_bs.csr, . - r ~ r, 
+     xlab="d", ylab="L(d)-r", 
+     main="Silver infocomm centres in Bishan")
+plot(K_eldercare_bs.csr, . - r ~ r, 
+     xlab="d", ylab="L(d)-r", 
+     main="Eldercare services in Bishan")
+
+plot(K_chas_jw.csr, . - r ~ r, 
+     xlab="d", ylab="L(d)-r", 
+     main="Chas Clinics in Jurong West")
+plot(K_infocomm_jw.csr, . - r ~ r, 
+     xlab="d", ylab="L(d)-r", 
+     main="Silver infocomm centres in Jurong West")
+plot(K_eldercare_jw.csr, . - r ~ r, 
+     xlab="d", ylab="L(d)-r", 
+     main="Eldercare services in Jurong West")
+```
+
+##Kernal density Estimation with OSM
+
+Create a binding box for selected subzones
+```{r}
+tp_bb <- st_bbox(mpsz_sf %>% filter(PLN_AREA_N == "TAMPINES"))
+amk_bb <- st_bbox(mpsz_sf %>% filter(PLN_AREA_N == "ANG MO KIO"))
+bs_bb <- st_bbox(mpsz_sf %>% filter(PLN_AREA_N == "BISHAN"))
+jw_bb <- st_bbox(mpsz_sf %>% filter(PLN_AREA_N == "JURONG WEST"))
+```
+
+Getting osm for the indivisual planning areas
+```{r}
+tp_osm <- read_osm(tp_bb, ext=1.1)
+amk_osm <- read_osm(amk_bb, ext=1.1)
+bs_osm <- read_osm(bs_bb, ext=1.1)
+jw_osm <- read_osm(jw_bb, ext=1.1)
+```
+
+```{r}
+getPlnAreaKernelDensityMap <- function(osm, pln, ppp, ppp_str) {
+  ppp.km <- rescale(ppp, 1000, "km")
+  
+  kde <- density(ppp.km, sigma=0.20, edge=TRUE, kernel="gaussian")
+  
+  gridded_kde_bw <- as.SpatialGridDataFrame.im(kde)
+  
+  kde_bw_raster <- raster(gridded_kde_bw)
+  
+  projection(kde_bw_raster) <- crs("+init=EPSG:3414 +datum=WGS84 +units=km")
+  
+  # Plot kernel density map on openstreetmap
+  tm_shape(osm)+ 
+    tm_layout(legend.outside = TRUE, title=ppp_str)+
+    tm_rgb()+
+  tm_shape(pln)+
+    tm_borders(col = "darkblue", lwd = 2, lty="longdash")+
+  tm_shape(kde_bw_raster) + 
+    tm_raster("v", alpha=0.5,  
+          palette = "YlOrRd")
+  
+}
+```
+
+```{r}
+kde_chas_tp <- getPlnAreaKernelDensityMap(tp_osm, tp, ppp_chas_tp, "Chas Clinics in Tampines") 
+kde_infocomm_tp <- getPlnAreaKernelDensityMap(tp_osm, tp, ppp_infocomm_tp, "Infocomm Centres in Tampines")
+kde_eldercare_tp <- getPlnAreaKernelDensityMap(tp_osm, tp, ppp_eldercare_tp, "Eldercare Services in Tampines")
+
+kde_chas_amk <- getPlnAreaKernelDensityMap(amk_osm, amk, ppp_chas_amk, "Chas Clinics in Ang Mo Kio") 
+kde_infocomm_amk <- getPlnAreaKernelDensityMap(amk_osm, amk, ppp_infocomm_amk, "Infocomm Centres in Ang Mo Kio")
+kde_eldercare_amk <- getPlnAreaKernelDensityMap(amk_osm, amk, ppp_eldercare_amk, "Eldercare Services in Ang Mo Kio")
+
+kde_chas_bs <- getPlnAreaKernelDensityMap(bs_osm, bs, ppp_chas_bs, "Chas Clinics in Bishan") 
+kde_infocomm_bs <- getPlnAreaKernelDensityMap(bs_osm, bs, ppp_infocomm_bs, "Infocomm Centres in Bishan")
+kde_eldercare_bs <- getPlnAreaKernelDensityMap(bs_osm, bs, ppp_eldercare_bs, "Eldercare Services in Bishan")
+
+kde_chas_jw <- getPlnAreaKernelDensityMap(jw_osm, jw, ppp_chas_jw, "Chas Clinics in Jurong West") 
+kde_infocomm_jw <- getPlnAreaKernelDensityMap(jw_osm, jw, ppp_infocomm_jw, "Infocomm Centres in Jurong West")
+kde_eldercare_jw <- getPlnAreaKernelDensityMap(jw_osm, jw, ppp_eldercare_jw, "Eldercare Services in Jurong West")
+```
+
+```{r}
+tmap_arrange(kde_chas_tp, kde_infocomm_tp, kde_eldercare_tp, asp=1, ncol=3)
+tmap_arrange(kde_chas_amk, kde_infocomm_amk, kde_eldercare_amk, asp=1, ncol=3)
+tmap_arrange(kde_chas_bs, kde_infocomm_bs, kde_eldercare_bs, asp=1, ncol=3)
+tmap_arrange(kde_chas_jw, kde_infocomm_jw, kde_eldercare_jw, asp=1, ncol=3)
+ val
+```
+
+```{r}
+#Extracting unique planning areas
+uniqPlanningAreas <- mpsz_demand[2]
+uniqPlanningAreas <- st_set_geometry(uniqPlanningAreas, NULL)
+uniqPlanningAreas <- unique(uniqPlanningAreas)
+
+varPlnArea <- c(
+  "MARINA SOUTH",
+  "OUTRAM",
+  "SINGAPORE RIVER",
+  "BUKIT MERAH",
+  "QUEENSTOWN",
+  "MARINA EAST",
+  "RIVER VALLEY",
+  "WESTERN ISLANDS",
+  "SOUTHERN ISLANDS",
+  "DOWNTOWN CORE",
+  "STRAITS VIEW",
+  "MARINE PARADE",
+  "MUSEUM",
+  "ORCHARD",
+  "ROCHOR",
+  "KALLANG",
+  "TANGLIN",
+  "NEWTON",
+  "CLEMENTI",
+  "TUAS",
+  "BEDOK",
+  "PIONEER",
+  "JURONG EAST",
+  "BUKIT TIMAH",
+  "NOVENA",
+  "GEYLANG",
+  "BOON LAY",
+  "TOA PAYOH",
+  "JURONG WEST",
+  "BUKIT BATOK",
+  "SERANGOON",
+  "PAYA LEBAR",
+  "BISHAN",
+  "TAMPINES",
+  "HOUGANG",
+  "BUKIT PANJANG",
+  "ANG MO KIO",
+  "CHOA CHU KANG",
+  "PASIR RIS",
+  "CHANGI",
+  "SENGKANG",
+  "CHANGI BAY",
+  "TENGAH",
+  "SUNGEI KADUT",
+  "PUNGGOL",
+  "YISHUN",
+  "MANDAI",
+  "SELETAR",
+  "WOODLANDS",
+  "WESTERN WATER CATCHMENT",
+  "SEMBAWANG",
+  "SIMPANG",
+  "LIM CHU KANG",
+  "NORTH-EASTERN ISLANDS",
+  "CENTRAL WATER CATCHMENT"
+)
+```
+
+```{r}
+residential <- readOGR(dsn = "data", layer="buildings")
+```
+```{r}
+residential_sf <- readOGR(dsn = "data", layer="buildings")
+```
+```{r}
+class(popdata)
+class(residential_sf)
+class(residential_df)
+```
+
+Change SF polygon to df for manipulation
+```{r}
+residential_df <- as.data.frame(residential_sf)
+```
+
+
+```{r}
+residential_df <- residential_df %>%
+  filter(type == 'residential' | type == 'apartments') 
+
+residential_sp <-  as_Spatial(residential_df)
+```
+
+need to join with mpsz_sf, interpolate to find total elderly count for each residential point
+```{r}
+# Estimating the elderly count in residential polygon
+{r}
+residential_count <- st_join(mpsz_sf, residential_sf, join=st_intersects)
+glimspe(residential_count)
+```
+
+
+```{r}
+head(residential)
+```
