@@ -236,60 +236,7 @@ boxmap <- function(vnam,df,legtitle=NA,mtitle,mult=1.5){
         tm_layout(title = mtitle, title.position = c("right","bottom"))
 }
 
-generateSAM <- function(pln_area, facility, input_capacity){
-  
-  demand <- hdb_sf %>% filter(PLN_AREA_N == pln_area)
-  temp_sf <- mpsz_sf %>% filter(PLN_AREA == pln_area)
-  pln_area_selected <- mpsz_sp[mpsz_sp@data$PLN_AREA_N == input$planningarea,]
-  bindingbox <- st_bbox(mpsz_sf %>% filter(PLN_AREA_N == input$planningarea,))
-  
-  supply_eldercare <- eldercare_sf %>% 
-    filter(PLN_AREA_N == pln_area) %>%
-    mutate(capacity = input_capacity)
-  supply_infocomm <- infocomm_sf %>% 
-    filter(PLN_AREA_N == pln_area) %>%
-    mutate(capacity = input_capacity)
-  supply_chas <- chas_sf %>% 
-    filter(PLN_AREA_N == pln_area) %>%
-    mutate(capacity = input_capacity)
-  
-  # create Distance Matrix
-  distmat_eldercare = as.matrix(CreateDistMatrix(knownpts=demand, unknownpts=supply_eldercare, longlat=FALSE)/1000)
-  distmat_infocomm = as.matrix(CreateDistMatrix(knownpts=demand, unknownpts=supply_infocomm, longlat=FALSE)/1000)
-  distmat_chas = as.matrix(CreateDistMatrix(knownpts=demand, unknownpts=supply_chas, longlat=FALSE)/1000)
-  
-  if (facility == "Eldercare Centres"){
-    distmmat = distmat_eldercare
-    supply = supply_eldercare
-  }
-  else if (facility == 'CHAS Clinics'){
-    distmat = distmat_chas
-    supply = supply_chas
-  }
-  else{
-    distmat = distmat_infocomm
-    supply = supply_infocomm
-  }
-  
-  # Generate accessibility values
-  temp <- data.frame(ac(demand$elderly_count,
-                        supply$capacity, 
-                        dist_mat,
-                        d0 = 20, 
-                        power = 2, 
-                        family = 'SAM'))
-  colnames(temp) <- 'accSAM'
-  temp <- tibble::as_tibble(temp)
-  result_sf <- bind_cols(temp_sf, temp)
-  
-  # Visualise the map
-  map <- tm_shape(result_sf) + 
-    tm_borders(alpha=0.6) + 
-    tm_fill(col='accSAM', 
-            style='pretty')
-  
-  return(map)
-}
+
 
 
 ui <- navbarPage("IS415 Team2",
@@ -353,22 +300,15 @@ ui <- navbarPage("IS415 Team2",
                       column(12,
                              titlePanel("Accessibility Analysis"),
                              column(2,
-                                    selectInput('accplanningarea', 'Select Planning Area', choices = varPlnArea, selected = "Tampines"), 
-                                    sliderInput(inputId='capacity', label='Select Capacity', min=1, max=150, value=50,round=TRUE)
+                                    selectInput(inputId='facility', label='Select Facility', choices = c('Eldercare Centres', 'Silver Infocomm Junctions', 'CHAS Clinics'), selected='Eldercare Centres'),
+                                    sliderInput(inputId='capacity', label='Select Capacity', min=1, max=150, value=50,round=TRUE), 
+                                    sliderInput(inputId='distance', label='Select Distance Threshold', min=0.1, max=30, round=FALSE, value=1)
                                     
                              ),
-                             column(3,
-                                    tmapOutput("accplotchas")
+                             column(8,
+                                    tmapOutput("accplot")
                                     
-                             ),
-                             column(3,
-                                    tmapOutput("accploteldercare")
-                                    
-                             ),
-                             column(3,
-                                    tmapOutput("accplotsilverinfo")
-                                    
-                             ),
+                             )
                              
                       )
                     ))
@@ -395,95 +335,38 @@ server <- function(input, output) {
     
     # Accessibility Maps
     
-    output$accploteldercare <- renderTmap({
-      demand <- hdb_sf %>% filter(PLN_AREA_N == input$accplanningarea,)
-      temp_sf <- mpsz_sf %>% filter(PLN_AREA_N == input$accplanningarea,)
-      bindingbox <- st_bbox(mpsz_sf %>% filter(PLN_AREA_N == input$accplanningarea,))
+    output$accplot <- renderTmap({
+      demand <- hdb_sf 
+      temp_sf <- hdb_sf 
+      bindingbox <- st_bbox(mpsz_sf)
       selected_osm <- read_osm(bindingbox, ext=1.1)
-      supply <- eldercare_sf %>% 
-        filter(PLN_AREA_N == input$accplanningarea) %>%
-        mutate(capacity = input$capacity)
+      
+      if (input$facility == 'Eldercare Centres'){
+        supply <- eldercare_sf %>% 
+          mutate(capacity = input$capacity)
+      }
+      else if (input$facility == 'CHAS Clinics'){
+        supply <- chas_sf %>% 
+          mutate(capacity = input$capacity)
+      }
+      else{
+        supply <- infocomm_sf %>% 
+          mutate(capacity = input$capacity)
+      }
     
-      # create Distance Matrix
       distmat = as.matrix(CreateDistMatrix(knownpts=demand, unknownpts=supply, longlat=FALSE)/1000)
-      
-      # Generate accessibility values
-      temp <- data.frame(ac(demand$elderly_count,supply$capacity, distmat, d0 = 0.5, power = 2, family = 'SAM'))
+      temp <- data.frame(ac(demand$elderly_count,supply$capacity, distmat, d0 = input$distance, power = 2, family = 'SAM'))
       colnames(temp) <- 'accSAM'
       temp <- tibble::as_tibble(temp)
       result_sf <- bind_cols(temp_sf, temp)
       
       # Generate the Map
-      tm_shape(selected_osm)+ 
-        tm_layout(legend.outside = TRUE, title="msg_text")+
-        tm_rgb()+
-        tm_shape(result_sf)+
-        tm_borders(col = "darkblue", lwd = 2, lty="longdash")+
-        tm_fill(col='accSAM', 
-                style='pretty')
+      tm_shape(result_sf)+
+        tm_borders(alpha=0.6)+
+        tm_fill(col='accSAM', style='pretty')
       
-    })
-    output$accplotchas <- renderTmap({
-      
-      demand <- hdb_sf %>% filter(PLN_AREA_N == input$accplanningarea,)
-      temp_sf <- mpsz_sf %>% filter(PLN_AREA_N == input$accplanningarea,)
-      bindingbox <- st_bbox(mpsz_sf %>% filter(PLN_AREA_N == input$accplanningarea,))
-      selected_osm <- read_osm(bindingbox, ext=1.1)
-      supply <- chas_sf %>% 
-        filter(PLN_AREA_N == input$accplanningarea) %>%
-        mutate(capacity = input$capacity)
-      
-      
-      # create Distance Matrix
-      distmat = as.matrix(CreateDistMatrix(knownpts=demand, unknownpts=supply, longlat=FALSE)/1000)
-      
-      
-      # Generate accessibility values
-      temp <- data.frame(ac(demand$elderly_count, supply$capacity, distmat, d0 = 0.5, power = 2, family = 'SAM'))
-      colnames(temp) <- 'accSAM'
-      temp <- tibble::as_tibble(temp)
-      result_sf <- bind_cols(temp_sf, temp)
-      
-      # Generate the Map
-      tm_shape(selected_osm)+ 
-        tm_layout(legend.outside = TRUE, title="msg_text")+
-        tm_rgb()+
-        tm_shape(result_sf)+
-        tm_borders(col = "darkblue", lwd = 2, lty="longdash")+
-        tm_fill(col='accSAM', 
-                style='pretty')
     })
     
-    output$accplotsilverinfo <- renderTmap({
-      
-      demand <- hdb_sf %>% filter(PLN_AREA_N == input$accplanningarea,)
-      temp_sf <- mpsz_sf %>% filter(PLN_AREA_N == input$accplanningarea,)
-      bindingbox <- st_bbox(mpsz_sf %>% filter(PLN_AREA_N == input$accplanningarea,))
-      selected_osm <- read_osm(bindingbox, ext=1.1)
-      supply <- infocomm_sf %>% 
-        filter(PLN_AREA_N == input$accplanningarea) %>%
-        mutate(capacity = input$capacity)
-      
-      
-      # create Distance Matrix
-      distmat = as.matrix(CreateDistMatrix(knownpts=demand, unknownpts=supply, longlat=FALSE)/1000)
-      
-      
-      # Generate accessibility values
-      temp <- data.frame(ac(demand$elderly_count, supply$capacity, distmat, d0 = 0.5, power = 2, family = 'SAM'))
-      colnames(temp) <- 'accSAM'
-      temp <- tibble::as_tibble(temp)
-      result_sf <- bind_cols(temp_sf, temp)
-      
-      # Generate the Map
-      tm_shape(selected_osm)+ 
-        tm_layout(legend.outside = TRUE, title="msg_text")+
-        tm_rgb()+
-        tm_shape(result_sf)+
-        tm_borders(col = "darkblue", lwd = 2, lty="longdash")+
-        tm_fill(col='accSAM', 
-                style='pretty')
-    })
     
     
     #Supply and Demand of 3 different elder care facilities by density and elderly count
