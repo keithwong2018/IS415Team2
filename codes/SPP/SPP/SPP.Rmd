@@ -211,6 +211,25 @@ mpsz_spatialpoint <- as(mpsz_sp, "SpatialPolygons")
 sg_osm <- read_osm(mpsz_spatialpoint, ext=1.3)
 ```
 
+```{r}
+hdb <- read_csv('data/hdb_data.csv')
+hdb <- hdb %>% 
+  mutate(total_count=rowSums(.[2:11])) %>%
+  dplyr::select(Postcode, X, Y, Latitude, Longitude, total_count)
+hdb$Postcode <- as.character(hdb$Postcode)
+hdb_sf <- st_as_sf(hdb, coords=c('X', 'Y'), crs='EPSG:3414')
+```
+
+```{r}
+mpsz_sf <- left_join(mpsz_sf, popdata2019, by=c('PLN_AREA_N' = 'planning_area', 'SUBZONE_N' = 'subzone'))
+mpsz_sf <- mpsz_sf %>%
+  dplyr::select(SUBZONE_N, PLN_AREA_N, REGION_N, elderly_count, total_count, geometry) %>%
+  mutate(elderly_proportion = elderly_count / total_count) %>%
+  mutate_if(is.numeric, ~replace(., is.nan(.), 0))
+mpsz_sp <- as_Spatial(mpsz_sf)
+mpsz_spatialpoint <- as(mpsz_sp, "SpatialPolygons")
+```
+
 Class interval for boxmap
 ```{r}
 boxbreaks <- function(v,mult=1.5) {
@@ -639,5 +658,5 @@ glimspe(residential_count)
 
 
 ```{r}
-head(residential)
+class(amk)
 ```

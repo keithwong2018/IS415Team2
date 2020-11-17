@@ -7,7 +7,7 @@
 #    http://shiny.rstudio.com/
 #
 
-packages = c('rgdal', 'sf', 'tmap', 'tidyverse', 'sp', 'rgeos','maptools', 'raster', 'spatstat', 'tmaptools', 'spdep', 'OpenStreetMap', 'ggpubr', 'SpatialPosition', 'SpatialAcc')
+packages = c('rgdal', 'sf', 'tmap', 'tidyverse', 'sp', 'rgeos','maptools', 'raster', 'spatstat', 'tmaptools', 'spdep', 'OpenStreetMap', 'ggpubr', 'SpatialPosition', 'SpatialAcc', 'dplyr', 'shinycssloaders')
 for (p in packages){
     if (!require(p, character.only = T)){
         install.packages(p)
@@ -99,7 +99,7 @@ mpsz_demand$`infocomm_count` <- lengths(st_intersects(mpsz_sf,infocomm_sf))
 
 # Join HDB with MP14 Data
 hdb_sf <- st_join(mpsz_sf, hdb_sf, join=st_intersects) %>%
-  select(SUBZONE_N, PLN_AREA_N, REGION_N, elderly_proportion, Postcode, total_count.y, geometry) %>%
+  dplyr::select(SUBZONE_N, PLN_AREA_N, REGION_N, elderly_proportion, Postcode, total_count.y, geometry) %>%
   rename(resident_count = total_count.y) %>%
   mutate(elderly_count = resident_count * elderly_proportion) %>%
   mutate_if(is.numeric, ~replace(., is.na(.), 0))
@@ -128,19 +128,15 @@ uniqPlanningAreas <- st_set_geometry(uniqPlanningAreas, NULL)
 uniqPlanningAreas <- unique(uniqPlanningAreas)
 
 varPlnArea <- c(
-    "MARINA SOUTH",
+    "TAMPINES",
     "OUTRAM",
-    "SINGAPORE RIVER",
     "BUKIT MERAH",
     "QUEENSTOWN",
     "MARINA EAST",
     "RIVER VALLEY",
-    "WESTERN ISLANDS",
-    "SOUTHERN ISLANDS",
     "DOWNTOWN CORE",
     "STRAITS VIEW",
     "MARINE PARADE",
-    "MUSEUM",
     "ORCHARD",
     "ROCHOR",
     "KALLANG",
@@ -161,7 +157,6 @@ varPlnArea <- c(
     "SERANGOON",
     "PAYA LEBAR",
     "BISHAN",
-    "TAMPINES",
     "HOUGANG",
     "BUKIT PANJANG",
     "ANG MO KIO",
@@ -171,18 +166,14 @@ varPlnArea <- c(
     "SENGKANG",
     "CHANGI BAY",
     "TENGAH",
-    "SUNGEI KADUT",
     "PUNGGOL",
     "YISHUN",
     "MANDAI",
     "SELETAR",
     "WOODLANDS",
-    "WESTERN WATER CATCHMENT",
     "SEMBAWANG",
     "SIMPANG",
-    "LIM CHU KANG",
-    "NORTH-EASTERN ISLANDS",
-    "CENTRAL WATER CATCHMENT"
+    "LIM CHU KANG"
 )
 
 varEdaSel <- c(
@@ -236,9 +227,6 @@ boxmap <- function(vnam,df,legtitle=NA,mtitle,mult=1.5){
         tm_layout(title = mtitle, title.position = c("right","bottom"))
 }
 
-
-
-
 ui <- navbarPage("IS415 Team2",
            tabPanel("EDA",
                         column(12,
@@ -273,28 +261,46 @@ ui <- navbarPage("IS415 Team2",
                                )
                         )
                     ),
-           tabPanel("Kernal Density Plots",
-                    fixedRow(
-                        column(12,
-                               titlePanel("Kernal Density Plots"),
-                                   column(2,
-                                          selectInput('planningarea', 'Select Planning Area', choices = varPlnArea, selected = "Tampines")
-                                   ),
-                                   column(3,
-                                          tmapOutput("kdeplotchas")
-                                          
-                                   ),
-                                   column(3,
-                                          tmapOutput("kdeploteldercare")
-                                          
-                                   ),
-                                   column(3,
-                                          tmapOutput("kdeplotsilverinfo")
-                                          
-                                   ),
-                               
-                        )
-                    )),
+           tabPanel("Spatial Point Pattern",
+                    column(12,
+                           titlePanel("Kernal Density Plots"),
+                           column(2,
+                                  selectInput('planningarea', 'Select Planning Area', choices = varPlnArea, selected = "Tampines"),
+                                  radioButtons("kcoptions", "View cross-k results",
+                                               c("Yes","No"),
+                                               selected = "No")
+                                  
+                           ),
+                           column(3,
+                                  tmapOutput("kdeplotchas") %>% withSpinner(color="#0dc5c1")
+                                  
+                           ),
+                           column(3,
+                                  tmapOutput("kdeploteldercare") %>% withSpinner(color="#0dc5c1")
+                                  
+                           ),
+                           column(3,
+                                  tmapOutput("kdeplotsilverinfo") %>% withSpinner(color="#0dc5c1")
+                                  
+                           ),
+                           
+                    ),
+                    column(12), 
+                    column(12,
+                           column(2, 
+                           ),
+                           
+                           column(3,
+                                  plotOutput("kChas") %>% withSpinner(color="#0dc5c1")
+                           ),
+                           column(3,
+                                  plotOutput("kEldercare") %>% withSpinner(color="#0dc5c1")
+                           ),
+                           column(3,
+                                  plotOutput("kSilverinfo") %>% withSpinner(color="#0dc5c1")
+                           ) 
+                    )
+           ),
            tabPanel("Accessibility", 
                     fixedRow(
                       column(12,
@@ -306,7 +312,7 @@ ui <- navbarPage("IS415 Team2",
                                     
                              ),
                              column(8,
-                                    tmapOutput("accplot")
+                                    tmapOutput("accplot") %>% withSpinner(color="#0dc5c1")
                                     
                              )
                              
@@ -316,6 +322,10 @@ ui <- navbarPage("IS415 Team2",
 
 
 server <- function(input, output) {
+  
+  data <- eventReactive(input$kcoptions,{
+    rnorm(1:100000)
+  })
 
     output$boxplot <- renderTmap({
         if(input$edasel == "Elderly Density"){
@@ -837,6 +847,27 @@ server <- function(input, output) {
         
     }) 
     
+      output$kChas <- renderPlot({
+        if(input$kcoptions == "Yes"){
+          pln_area_selected <- mpsz_sp[mpsz_sp@data$PLN_AREA_N == input$planningarea,]
+          
+          owin <- as(pln_area_selected, "owin")
+          #spatialpoint <- as(pln_area_selected, "SpatialPolygons")
+          chas_ppp <- as(chas_spatialpoint, "ppp")
+          chas_ppp_jit <- rjitter(chas_ppp, retry=TRUE, nsim=1, drop=TRUE)
+          
+          ppp_chas <- chas_ppp_jit[owin]
+          
+          K_chas = Kest(ppp_chas, correction = "Ripley")
+          K_chas.csr <- envelope(ppp_chas, Kest, nsim = 99, rank = 1, glocal=TRUE)
+          
+          plot(K_chas, . - r ~ r, 
+               xlab="d", ylab="L(d)-r", 
+               main="Chas Clinics")
+        }
+      })
+    
+    
     output$kdeploteldercare <- renderTmap({
         pln_area_selected <- mpsz_sp[mpsz_sp@data$PLN_AREA_N == input$planningarea,]
         bindingbox <- st_bbox(mpsz_sf %>% filter(PLN_AREA_N == input$planningarea,))
@@ -873,6 +904,26 @@ server <- function(input, output) {
                       palette = "YlOrRd")
         
     }) 
+    
+    output$kEldercare <- renderPlot({
+      if(input$kcoptions == "Yes"){
+        pln_area_selected <- mpsz_sp[mpsz_sp@data$PLN_AREA_N == input$planningarea,]
+        
+        owin <- as(pln_area_selected, "owin")
+        #spatialpoint <- as(pln_area_selected, "SpatialPolygons")
+        elder_ppp <- as(eldercare_spatialpoint, "ppp")
+        elder_ppp_jit <- rjitter(elder_ppp, retry=TRUE, nsim=1, drop=TRUE)
+        
+        ppp_elder<- elder_ppp_jit[owin]
+        
+        K_elder = Kest(ppp_elder, correction = "Ripley")
+        K_elder.csr <- envelope(ppp_elder, Kest, nsim = 99, rank = 1, glocal=TRUE)
+        
+        plot(K_elder, . - r ~ r, 
+             xlab="d", ylab="L(d)-r", 
+             main="Eldercare Facilities")
+      }
+    })
     
     output$kdeplotsilverinfo <- renderTmap({
         pln_area_selected <- mpsz_sp[mpsz_sp@data$PLN_AREA_N == input$planningarea,]
@@ -911,11 +962,35 @@ server <- function(input, output) {
         
     }) 
     
+    output$kSilverinfo <- renderPlot({
+      if(input$kcoptions == "Yes"){
+        pln_area_selected <- mpsz_sp[mpsz_sp@data$PLN_AREA_N == input$planningarea,]
+        
+        owin <- as(pln_area_selected, "owin")
+        #spatialpoint <- as(pln_area_selected, "SpatialPolygons")
+        silver_ppp <- as(infocomm_spatialpoint, "ppp")
+        silver_ppp_jit <- rjitter(silver_ppp, retry=TRUE, nsim=1, drop=TRUE)
+        
+        ppp_silver <- silver_ppp_jit[owin]
+        
+        K_info = Kest(ppp_silver, correction = "Ripley")
+        K_info.csr <- envelope(ppp_silver, Kest, nsim = 99, rank = 1, glocal=TRUE)
+        
+        plot(K_info, . - r ~ r, 
+             xlab="d", ylab="L(d)-r", 
+             main="Silver infocomm Centres")
+      }
+    })
+    
     output$text <- renderText({
         visFun <- renderText({input$planningarea})
         visFun()
     })
 }
 
+    output$hotspot <- renderTmap({
+      dnb <- dnearneigh(coordinates(hunan), 0, 85, longlat = TRUE)
+      
+    })
 # Run the application 
 shinyApp(ui = ui, server = server)
