@@ -7,7 +7,7 @@
 #    http://shiny.rstudio.com/
 #
 
-packages = c('rgdal', 'sf', 'tmap', 'tidyverse', 'sp', 'rgeos','maptools', 'raster', 'spatstat', 'tmaptools', 'spdep', 'OpenStreetMap','shiny', 'SpatialPosition')
+packages = c('rgdal', 'sf', 'tmap', 'tidyverse', 'sp', 'rgeos','maptools', 'raster', 'spatstat', 'tmaptools', 'spdep', 'OpenStreetMap','shiny', 'SpatialPosition', 'leaflet', 'SpatialAcc')
 for (p in packages){
     if (!require(p, character.only = T)){
         install.packages(p)
@@ -116,10 +116,10 @@ bs_sf <- mpsz_sf[mpsz_sf$PLN_AREA_N == "BISHAN",]
 jw_sf <- mpsz_sf[mpsz_sf$PLN_AREA_N == "JURONG WEST",]
 
 #Extracting centroids by selected planning areas
-tp_centroids <- centroids[centroids$PLN_AREA_N == 'TAMPINES'] 
-amk_centroids <- centroids[centroids$PLN_AREA_N == 'ANG MO KIO'] 
-bs_centroids <- centroids[centroids$PLN_AREA_N == 'BISHAN'] 
-jw_centroids <- centroids[centroids$PLN_AREA_N == 'JURONG WEST'] 
+tp_centroids <- centroids %>% filter(PLN_AREA_N.x == 'TAMPINES')
+amk_centroids <- centroids %>% filter(PLN_AREA_N.x == 'ANG MO KIO') 
+bs_centroids <- centroids %>% filter(PLN_AREA_N.x == 'BISHAN')
+jw_centroids <- centroids %>% filter(PLN_AREA_N.x == 'JURONG WEST') 
 
 #Extracting Eldercare, Infocomm, CHAS within study area
 tp_eldercare_sf <- eldercare_sf %>% filter(PLN_AREA_N == 'TAMPINES')
@@ -367,20 +367,128 @@ bs_chas_dismat <- as.matrix(bs_chas_dismat/1000)
 jw_chas_dismat <- as.matrix(jw_chas_dismat/1000)
 
 
-#Function to compute accessibility values & Visualising Output
-getPA_SAM <- function(demand, supply, dist_matrix, sf) {
+#Function to compute accessibility values
+generate_SAM <- function(x, y){
+  if(x=='TAMPINES'){
+    demand <- tp_centroids
+    sf <- tp_sf
+    
+    if (y=='Eldercare Centres'){
+      supply <- tp_eldercare_sf
+      dist_mat <- tp_eldercare_dismat
+    }
+    else if (y=='Silver Infocomm Junctions'){
+      supply <- tp_infocomm_sf
+      dist_mat <- tp_infocomm_dismat
+    }
+    else if(y=='CHAS Clinics'){
+      supply <- tp_chas_sf
+      dist_mat <- tp_chas_dismat
+    }
+  }
   
-  #Compute accessibility matrix
+  else if(x=='ANG MO KIO'){
+    demand <- amk_centroids
+    sf <- amk_sf
+    
+    if (y=='Eldercare Centres'){
+      supply <- amk_eldercare_sf
+      dist_mat <- amk_eldercare_dismat
+    }
+    else if (y=='Silver Infocomm Junctions'){
+      supply <- amk_infocomm_sf
+      dist_mat <- amk_infocomm_dismat
+    }
+    else if(y=='CHAS Clinics'){
+      supply <- amk_chas_sf
+      dist_mat <- amk_chas_dismat
+    }
+  }
+  
+  else if(x=='BISHAN'){
+    demand <- bs_centroids
+    sf <- bs_sf
+    
+    if (y=='Eldercare Centres'){
+      supply <- bs_eldercare_sf
+      dist_mat <- bs_eldercare_dismat
+    }
+    else if (y=='Silver Infocomm Junctions'){
+      supply <- bs_infocomm_sf
+      dist_mat <- bs_infocomm_dismat
+    }
+    else if(y=='CHAS Clinics'){
+      supply <- bs_chas_sf
+      dist_mat <- bs_chas_dismat
+    }
+  }
+  
+  else if(x=='JURONG WEST'){
+    demand <- jw_centroids
+    sf <- jw_sf
+    
+    if (y=='Eldercare Centres'){
+      supply <- jw_eldercare_sf
+      dist_mat <- jw_eldercare_dismat
+    }
+    else if (y=='Silver Infocomm Junctions'){
+      supply <- jw_infocomm_sf
+      dist_mat <- jw_infocomm_dismat
+    }
+    else if(y=='CHAS Clinics'){
+      supply <- jw_chas_sf
+      dist_mat <- jw_chas_dismat
+    }
+  }
+  
   temp <- data.frame(ac(demand$elderly_count,
                         supply$capacity, 
-                        dist_matrix,
+                        dist_mat,
                         d0 = 30, 
                         power = 2, 
                         family = 'SAM'))
   colnames(temp) <- 'accSAM'
   temp <- tibble::as_tibble(temp)
-  result <- bind_cols(sf, temp)
-  return(result)
+  result_sf <- bind_cols(sf, temp)
+  result <- as(result_sf, 'Spatial')
+  
+  #Visualisation
+  
+  labels <- sprintf(
+    "<strong>%s</strong><br/>%g",
+    result$SUBZONE_N, result$accSAM
+  ) %>% lapply(htmltools::HTML)
+  
+  pal <- colorBin("YlOrRd", domain = result$accSAM, bins = 6)
+  
+  
+  map <- leaflet(data=result) %>%
+    addPolygons(
+      fillColor = ~pal(accSAM),
+      weight = 2,
+      opacity = 1,
+      color = "white",
+      dashArray = "3",
+      fillOpacity = 0.7,
+      highlight = highlightOptions(
+        weight = 5,
+        color = "#666",
+        dashArray = "",
+        fillOpacity = 0.7,
+        bringToFront = TRUE),
+      label = labels,
+      labelOptions = labelOptions(
+        style = list("font-weight" = "normal", padding = "3px 8px"),
+        textsize = "15px",
+        direction = "auto")) %>%
+    addLegend(pal=pal, values=~accSAM, opacity=0.7, title='SAM Accessibility', position='bottomright')
+  
+  map2 <- tm_shape(result_sf) + 
+    tm_borders(alpha=0.6) + 
+    tm_fill(col='accSAM', 
+            style='pretty')
+    
+  return(map)
 }
 
 
@@ -391,22 +499,22 @@ getPA_SAM <- function(demand, supply, dist_matrix, sf) {
 ui <- navbarPage("IS415 Team2",
            tabPanel("EDA",
                     fixedRow(
-                        column(8,
+                        column(6,
                                titlePanel("Spatial Point Pattern Analysis"),
                                fixedRow(
-                                   column(10,
+                                   column(6,
                                           tmapOutput("boxplot")
                                    ),
-                                   column(10,
+                                   column(6,
                                           tmapOutput("sdplot")
                                    )
                                )
                         )
                     )),
-           tabPanel("Kernal Density Plots",
+           tabPanel("Kernel Density Plots",
                     fixedRow(
                         column(12,
-                               titlePanel("Kernal Density Plots"),
+                               titlePanel("Kernel Density Plots"),
                                fixedRow(
                                    column(2,
                                           selectInput('planningarea', 'Select Planning Area', choices = c("Tampines", "Ang Mo Kio", "Bishan", "Jurong West"))  
@@ -424,18 +532,17 @@ ui <- navbarPage("IS415 Team2",
                       column(12, 
                              titlePanel('Geographical Accessibility by Planning Area'),
                              sidebarLayout(
-                               sidebarPanel(
+                               sidebarPanel('Filters',
+                                            
                                  
-                                 'Select Planning Area', 
                                  radioButtons(inputId='PLN_AREA_N', 
                                         label='Planning Area', 
                                         choices=c('Tampines' = 'TAMPINES', 
                                                   'Ang Mo Kio' = 'ANG MO KIO', 
                                                   'Bishan' = 'BISHAN', 
                                                   'Jurong West' = 'JURONG WEST'), 
-                                        selected='Tampines'), 
+                                        selected='TAMPINES'), 
                                  
-                                 'Select Facility', 
                                  radioButtons(inputId='facilityType', 
                                               label='Facility Type', 
                                               choices=c('Eldercare Centres' = 'Eldercare Centres', 
@@ -443,11 +550,13 @@ ui <- navbarPage("IS415 Team2",
                                                         'CHAS Clinics' = 'CHAS Clinics'), 
                                               selected='Eldercare Centres'), 
                                  
+                                 
                                  actionButton('SAMgoButton', 'Go!')
                                ), 
                                
                                mainPanel(
-                                 tmapOutput('SAMmap')
+                                 leafletOutput("hardcode"),
+                                 textOutput('hello')
                                )
                              )
                              )
@@ -478,96 +587,28 @@ server <- function(input, output) {
             tm_shape(infocomm_sf) + tm_dots("green") 
     })
     
-      
-    generateSAM <- eventReactive(input$SAMgoButton, {
-      
-      x <- isolate(input$PLN_AREA_N)
-      y <- isolate(input$facilityType)
-      
-      if(x=='TAMPINES'){
-        demand <- tp_centroids
-        sf <- tp_sf
-        
-        if (y=='Eldercare Centres'){
-          supply <- tp_eldercare_sf
-          dist_mat <- tp_eldercare_dismat
-        }
-        else if (y=='Silver Infocomm Junctions'){
-          supply <- tp_infocomm_sf
-          dist_mat <- tp_infocomm_dismat
-        }
-        else if(y=='CHAS Clinics'){
-          supply <- tp_chas_sf
-          dist_mat <- tp_chas_dismat
-        }
-      }
-      
-      else if(x=='ANG MO KIO'){
-        demand <- amk_centroids
-        sf <- amk_sf
-        
-        if (y=='Eldercare Centres'){
-          supply <- amk_eldercare_sf
-          dist_mat <- amk_eldercare_dismat
-        }
-        else if (y=='Silver Infocomm Junctions'){
-          supply <- amk_infocomm_sf
-          dist_mat <- amk_infocomm_dismat
-        }
-        else if(y=='CHAS Clinics'){
-          supply <- amk_chas_sf
-          dist_mat <- amk_chas_dismat
-        }
-      }
-      
-      else if(x=='BISHAN'){
-        demand <- bs_centroids
-        sf <- bs_sf
-        
-        if (y=='Eldercare Centres'){
-          supply <- bs_eldercare_sf
-          dist_mat <- bs_eldercare_dismat
-        }
-        else if (y=='Silver Infocomm Junctions'){
-          supply <- bs_infocomm_sf
-          dist_mat <- bs_infocomm_dismat
-        }
-        else if(y=='CHAS Clinics'){
-          supply <- bs_chas_sf
-          dist_mat <- bs_chas_dismat
-        }
-      }
-      
-      else if(x=='JURONG WEST'){
-        demand <- jw_centroids
-        sf <- jw_sf
-        
-        if (y=='Eldercare Centres'){
-          supply <- jw_eldercare_sf
-          dist_mat <- jw_eldercare_dismat
-        }
-        else if (y=='Silver Infocomm Junctions'){
-          supply <- jw_infocomm_sf
-          dist_mat <- jw_infocomm_dismat
-        }
-        else if(y=='CHAS Clinics'){
-          supply <- jw_chas_sf
-          dist_mat <- jw_chas_dismat
-        }
-      }
-      
-      result <- getPA_SAM(demand, supply, dist_mat, sf)
-      tm_shape(result)+ 
-        tm_borders(alpha = 0.5) + 
-        tm_fill(col='accSAM', 
-                style='pretty')
-      
-      })
-      
-    output$SAMmap <- renderTmap({
-      map <- generateSAM()
-      map
+    
+    #Accessibility Analysis 
+    
+    for_tmap <- eventReactive(input$SAMgoButton, {
+      generate_SAM(input$PLN_AREA_N, input$facilityType)
     })
+    
+    
+    
+    output$hardcode <- renderLeaflet({
+      generate_SAM('TAMPINES', 'Eldercare Centres')
+    })
+    
+    output$example <- renderTable({
+      for_tmap()
+    })
+    
+    
+
+    
+    output$hello <- renderText({ paste('HELLO')})
+    
       
 }
 
