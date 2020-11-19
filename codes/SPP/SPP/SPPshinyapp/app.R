@@ -266,7 +266,7 @@ ui <- navbarPage("IS415 Team2",
                            titlePanel("Kernal Density Plots"),
                            column(2,
                                   selectInput('planningarea', 'Select Planning Area', choices = varPlnArea, selected = "Tampines"),
-                                  radioButtons("kcoptions", "View cross-k results",
+                                  radioButtons("kcoptions", "View Cross-k results",
                                                c("Yes","No"),
                                                selected = "No")
                                   
@@ -788,7 +788,9 @@ server <- function(input, output) {
             ggplot(data=mpsz_demand, 
                    aes(x= as.numeric(`Chas_Density`)))+
                 geom_histogram(bins=20, 
-                               color="black", fill="light blue")
+                               color="black", fill="light blue")+ 
+            labs(x='Ratio of Elderly to No. of CHAS Clinics', 
+                 y='Count')
         }
     })
     
@@ -797,7 +799,9 @@ server <- function(input, output) {
             ggplot(data=mpsz_demand, 
                    aes(x= as.numeric(`Infocomm_Density`)))+
                 geom_histogram(bins=20, 
-                               color="black", fill="light blue")
+                               color="black", fill="light blue")+
+            labs(x='Ratio of Elderly to No. of Silver Infocomm Junctions', 
+                 y='Count')
         }
     })
     
@@ -806,7 +810,9 @@ server <- function(input, output) {
             ggplot(data=mpsz_demand, 
                    aes(x= as.numeric(`Eldercare_Density`)))+
                 geom_histogram(bins=20, 
-                               color="black", fill="light blue")
+                               color="black", fill="light blue")+ 
+            labs(x='Ratio of Elderly to No. of Eldercare Centres', 
+                 y='Count')
         }
     })
     
@@ -986,11 +992,13 @@ server <- function(input, output) {
         visFun <- renderText({input$planningarea})
         visFun()
     })
-}
-
+    
     output$hotspot <- renderTmap({
       dnb <- dnearneigh(coordinates(hunan), 0, 85, longlat = TRUE)
       
     })
+}
+
+    
 # Run the application 
 shinyApp(ui = ui, server = server)
