@@ -665,7 +665,7 @@ glimspe(residential_count)
 
 ```{r}
 mpsz_demand_amk <- mpsz_demand %>%
-  filter(PLN_AREA_N == "ANG MO KIO")
+  filter(PLN_AREA_N == "HOUGANG")
 ```
 
 ```{r}
@@ -676,11 +676,14 @@ mpsz_demand_amk_sp <- as_Spatial(mpsz_demand_amk)
 coords <- coordinates(mpsz_demand_amk_sp)
 k1 <- knn2nb(knearneigh(coords))
 k1dists <- unlist(nbdists(k1, coords, longlat=FALSE))
-summary(k1dists)
+#summary(k1dists)
+maxdist <- ceiling(max(k1dists))
+#maxdist <- round(max(k1dists),0)
+
 ```
 
 ```{r}
-dnb <- dnearneigh(coordinates(mpsz_demand_amk_sp), 0, 1364, longlat = FALSE)
+dnb <- dnearneigh(coordinates(mpsz_demand_amk_sp), 0, maxdist, longlat = FALSE)
 dnb
 ```
 
@@ -698,12 +701,19 @@ summary(dnb_lw)
 
 ```{r}
 fips <- order(mpsz_demand_amk_sp$SUBZONE_N)
-gi.fixed <- localG(mpsz_demand_amk_sp$chas_count, dnb_lw)
+gi.fixed <- localG(mpsz_demand_amk_sp$infocomm_count, dnb_lw)
 gi.fixed
 ```
 
 ```{r}
 chas.gi <- cbind(mpsz_demand_amk_sp, as.matrix(gi.fixed))
+```
+
+```{r}
+names(chas.gi)[23]
+```
+
+```{r}
 names(chas.gi)[23] <- "gstat"
 ```
 

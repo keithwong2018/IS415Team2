@@ -7,7 +7,7 @@
 #    http://shiny.rstudio.com/
 #
 
-packages = c('rgdal', 'sf', 'tmap', 'tidyverse', 'sp', 'rgeos','maptools', 'raster', 'spatstat', 'tmaptools', 'spdep', 'OpenStreetMap', 'ggpubr', 'SpatialPosition', 'SpatialAcc', 'dplyr', 'shinycssloaders')
+packages = c('rgdal', 'sf', 'tmap', 'tidyverse', 'sp', 'rgeos','maptools', 'raster', 'spatstat', 'tmaptools', 'spdep', 'OpenStreetMap', 'ggpubr', 'SpatialPosition', 'SpatialAcc', 'dplyr', 'shinycssloaders','plotly')
 for (p in packages){
     if (!require(p, character.only = T)){
         install.packages(p)
@@ -132,10 +132,8 @@ varPlnArea <- c(
     "OUTRAM",
     "BUKIT MERAH",
     "QUEENSTOWN",
-    "MARINA EAST",
     "RIVER VALLEY",
     "DOWNTOWN CORE",
-    "STRAITS VIEW",
     "MARINE PARADE",
     "ORCHARD",
     "ROCHOR",
@@ -143,7 +141,6 @@ varPlnArea <- c(
     "TANGLIN",
     "NEWTON",
     "CLEMENTI",
-    "TUAS",
     "BEDOK",
     "PIONEER",
     "JURONG EAST",
@@ -164,16 +161,12 @@ varPlnArea <- c(
     "PASIR RIS",
     "CHANGI",
     "SENGKANG",
-    "CHANGI BAY",
-    "TENGAH",
     "PUNGGOL",
     "YISHUN",
-    "MANDAI",
     "SELETAR",
     "WOODLANDS",
     "SEMBAWANG",
-    "SIMPANG",
-    "LIM CHU KANG"
+    "SIMPANG"
 )
 
 varEdaSel <- c(
@@ -251,16 +244,17 @@ ui <- navbarPage("IS415 Team2",
                                       ),
                                
                                column(3,
-                                      plotOutput("edaHistChas")
+                                      plotlyOutput("plotlychas") 
                                ),
                                column(3,
-                                      plotOutput("edaHistElder")
+                                      plotlyOutput("plotlyelder")
                                ),
                                column(3,
-                                      plotOutput("edaHistInfo")
+                                      plotlyOutput("plotlyinfo")
                                )
                         )
                     ),
+
            tabPanel("Spatial Point Pattern",
                     column(12,
                            titlePanel("Kernal Density Plots"),
@@ -301,6 +295,28 @@ ui <- navbarPage("IS415 Team2",
                            ) 
                     )
            ),
+           tabPanel("Spatial Clustering",
+                    column(12,
+                           titlePanel("Hotspots and Coldspots"),
+                           column(2,
+                                  selectInput('sel_plnarea', 'Select Planning Area', choices = varPlnArea, selected = "Tampines")
+                                  
+                           ),
+                           column(3,
+                                  tmapOutput("hotspotchas") %>% withSpinner(color="#0dc5c1")
+                                  
+                           ),
+                           column(3,
+                                  tmapOutput("hotspotelder") %>% withSpinner(color="#0dc5c1")
+                                  
+                           ),
+                           column(3,
+                                  tmapOutput("hotspotinfo") %>% withSpinner(color="#0dc5c1")
+                                  
+                           ),
+                           
+                    ),
+           ),
            tabPanel("Accessibility", 
                     fixedRow(
                       column(12,
@@ -314,7 +330,7 @@ ui <- navbarPage("IS415 Team2",
                              column(8,
                                     tmapOutput("accplot") %>% withSpinner(color="#0dc5c1")
                                     
-                             )
+                             ) 
                              
                       )
                     ))
@@ -782,10 +798,51 @@ server <- function(input, output) {
     })
     
     #values <- reactiveValues()
+    
+    output$plotlychas <- renderPlotly({
+      if("CHAS Clinics" %in% input$cb_svc){
+        chasplot <- plot_ly(x = mpsz_demand$`Chas_Density`, type = "histogram", fill="blue")
+        chasplot <- chasplot %>% layout(title = 'Dist of CHAS Clinics',
+                              xaxis = list(title = 'Ratio of Eldertly to Chas Clinics',
+                                           zeroline = TRUE,
+                                           range = c(0, 3500)),
+                              yaxis = list(title = 'Count',
+                                           range = c(0,50)))
+        chasplot
+      }
+    })
+    
+    output$plotlyinfo <- renderPlotly({
+      if("Silver infocomm" %in% input$cb_svc){
+        infoplot <- plot_ly(x = mpsz_demand$`Infocomm_Density`, type = "histogram", fill="blue")
+        infoplot <- infoplot %>% layout(title = 'Dist of Infocomm Clinics',
+                                        xaxis = list(title = 'Ratio of Elderly to Infocomm',
+                                                     zeroline = TRUE,
+                                                     range = c(0, 11000)),
+                                        yaxis = list(title = 'Count',
+                                                     range = c(0,12)))
+        infoplot
+      }
+    })
+    
+    output$plotlyelder <- renderPlotly({
+      if("Eldercare Centres" %in% input$cb_svc){
+        elderplot <- plot_ly(x = mpsz_demand$`Eldercare_Density`, type = "histogram", fill="blue")
+        elderplot <- elderplot %>% layout(title = 'Dist of Eldercare Facilities',
+                                        xaxis = list(title = 'Ratio of Elderly to Eldercare Facilities',
+                                                     zeroline = TRUE,
+                                                     range = c(0, 8000)),
+                                        yaxis = list(title = 'Count',
+                                                     range = c(0,10)))
+        elderplot
+      }
+    })
+    
+    
 
     output$edaHistChas <- renderPlot({
         if("CHAS Clinics" %in% input$cb_svc){
-            ggplot(data=mpsz_demand, 
+            ggplot(data=mpsz_demand,
                    aes(x= as.numeric(`Chas_Density`)))+
                 geom_histogram(bins=20, 
                                color="black", fill="light blue")+ 
@@ -793,6 +850,8 @@ server <- function(input, output) {
                  y='Count')
         }
     })
+    
+    
     
     output$edaHistInfo <- renderPlot({
         if("Silver infocomm" %in% input$cb_svc){
@@ -989,13 +1048,160 @@ server <- function(input, output) {
     })
     
     output$text <- renderText({
-        visFun <- renderText({input$planningarea})
-        visFun()
+      #selecting planning area via user input
+      mpsz_demand_selected <- mpsz_demand %>%
+        filter(PLN_AREA_N == input$sel_plnarea)
+      
+      #coverting to sp polygons
+      mpsz_demand_selected_sp <- as_Spatial(mpsz_demand_selected)
+      
+      coords <- coordinates(mpsz_demand_selected_sp)
+      k1 <- knn2nb(knearneigh(coords))
+      k1dists <- unlist(nbdists(k1, coords, longlat=FALSE))
+      maxdist <- ceiling(max(k1dists))
+      
+      #Calculating d fixed-distance weight matrix
+      dnb <- dnearneigh(coordinates(mpsz_demand_selected_sp), 0, maxdist, longlat = FALSE)
+      
+      #plot(mpsz_demand_selected_sp, border = 'lightgrey')
+      #plot(dnb, coordinates(mpsz_demand_selected_sp), add=TRUE, col='red')
+      
+      dnb_lw <- nb2listw(dnb, style = 'B')
+      
+      fips <- order(mpsz_demand_selected_sp$SUBZONE_N)
+      gi.fixed <- localG(mpsz_demand_selected_sp$eldercare_count, dnb_lw)
+      gi.fixed
+      
+      elder.gi <- cbind(mpsz_demand_selected_sp, as.matrix(gi.fixed))
+      print(names(elder.gi)[15])
     })
     
-    output$hotspot <- renderTmap({
-      dnb <- dnearneigh(coordinates(hunan), 0, 85, longlat = TRUE)
+    output$plnAreatest <- renderPlot({
+      mpsz_demand_selected <- mpsz_demand %>%
+        filter(PLN_AREA_N == input$sel_plnarea)
       
+      mpsz_demand_selected_sp <- as_Spatial(mpsz_demand_selected)
+      
+      coords <- coordinates(mpsz_demand_selected_sp)
+      k1 <- knn2nb(knearneigh(coords))
+      k1dists <- unlist(nbdists(k1, coords, longlat=FALSE))
+      maxdist <- ceiling(max(k1dists))
+      
+      dnb <- dnearneigh(coordinates(mpsz_demand_selected_sp), 0, maxdist, longlat = FALSE)
+      
+      plot(mpsz_demand_selected_sp, border = 'lightgrey')
+      plot(dnb, coordinates(mpsz_demand_selected_sp), add=TRUE, col='red')
+      
+    })
+    
+    output$hotspotchas <- renderTmap({
+      #selecting planning area via user input
+      mpsz_demand_selected <- mpsz_demand %>%
+        filter(PLN_AREA_N == input$sel_plnarea)
+      
+      #coverting to sp polygons
+      mpsz_demand_selected_sp <- as_Spatial(mpsz_demand_selected)
+      
+      coords <- coordinates(mpsz_demand_selected_sp)
+      k1 <- knn2nb(knearneigh(coords))
+      k1dists <- unlist(nbdists(k1, coords, longlat=FALSE))
+      maxdist <- ceiling(max(k1dists))
+      
+      #Calculating d fixed-distance weight matrix
+      dnb <- dnearneigh(coordinates(mpsz_demand_selected_sp), 0, maxdist, longlat = FALSE)
+      
+      #plot(mpsz_demand_selected_sp, border = 'lightgrey')
+      #plot(dnb, coordinates(mpsz_demand_selected_sp), add=TRUE, col='red')
+      
+      dnb_lw <- nb2listw(dnb, style = 'B')
+      
+      fips <- order(mpsz_demand_selected_sp$SUBZONE_N)
+      gi.fixed <- localG(mpsz_demand_selected_sp$chas_count, dnb_lw)
+      gi.fixed
+      
+      chas.gi <- cbind(mpsz_demand_selected_sp, as.matrix(gi.fixed))
+      names(chas.gi)[15] <- "gstat"
+      #colnames(chas.gi)[23] <- "gstat"
+      
+      tm_shape(chas.gi) +
+        tm_fill(col = "gstat", 
+                style = "pretty",
+                palette="-RdBu",
+                title = "local Gi") +
+        tm_borders(alpha = 0.5)
+    })
+    
+    output$hotspotelder <- renderTmap({
+      #selecting planning area via user input
+      mpsz_demand_selected <- mpsz_demand %>%
+        filter(PLN_AREA_N == input$sel_plnarea)
+      
+      #coverting to sp polygons
+      mpsz_demand_selected_sp <- as_Spatial(mpsz_demand_selected)
+      
+      coords <- coordinates(mpsz_demand_selected_sp)
+      k1 <- knn2nb(knearneigh(coords))
+      k1dists <- unlist(nbdists(k1, coords, longlat=FALSE))
+      maxdist <- ceiling(max(k1dists))
+      
+      #Calculating d fixed-distance weight matrix
+      dnb <- dnearneigh(coordinates(mpsz_demand_selected_sp), 0, maxdist, longlat = FALSE)
+      
+      #plot(mpsz_demand_selected_sp, border = 'lightgrey')
+      #plot(dnb, coordinates(mpsz_demand_selected_sp), add=TRUE, col='red')
+      
+      dnb_lw <- nb2listw(dnb, style = 'B')
+      
+      fips <- order(mpsz_demand_selected_sp$SUBZONE_N)
+      gi.fixed <- localG(mpsz_demand_selected_sp$eldercare_count, dnb_lw)
+      gi.fixed
+      
+      elder.gi <- cbind(mpsz_demand_selected_sp, as.matrix(gi.fixed))
+      names(elder.gi)[15] <- "gstat"
+      
+      tm_shape(elder.gi) +
+        tm_fill(col = "gstat", 
+                style = "pretty",
+                palette="-RdBu",
+                title = "local Gi") +
+        tm_borders(alpha = 0.5)
+    })
+    
+    output$hotspotinfo <- renderTmap({
+      #selecting planning area via user input
+      mpsz_demand_selected <- mpsz_demand %>%
+        filter(PLN_AREA_N == input$sel_plnarea)
+      
+      #coverting to sp polygons
+      mpsz_demand_selected_sp <- as_Spatial(mpsz_demand_selected)
+      
+      coords <- coordinates(mpsz_demand_selected_sp)
+      k1 <- knn2nb(knearneigh(coords))
+      k1dists <- unlist(nbdists(k1, coords, longlat=FALSE))
+      maxdist <- ceiling(max(k1dists))
+      
+      #Calculating d fixed-distance weight matrix
+      dnb <- dnearneigh(coordinates(mpsz_demand_selected_sp), 0, maxdist, longlat = FALSE)
+      
+      
+      #plot(mpsz_demand_selected_sp, border = 'lightgrey')
+      #plot(dnb, coordinates(mpsz_demand_selected_sp), add=TRUE, col='red')
+      
+      dnb_lw <- nb2listw(dnb, style = 'B')
+      
+      fips <- order(mpsz_demand_selected_sp$SUBZONE_N)
+      gi.fixed <- localG(mpsz_demand_selected_sp$infocomm_count, dnb_lw)
+      gi.fixed
+      
+      info.gi <- cbind(mpsz_demand_selected_sp, as.matrix(gi.fixed))
+      names(info.gi)[15] <- "gstat"
+      
+      tm_shape(info.gi) +
+        tm_fill(col = "gstat", 
+                style = "pretty",
+                palette="-RdBu",
+                title = "local Gi") +
+        tm_borders(alpha = 0.5)
     })
 }
 
