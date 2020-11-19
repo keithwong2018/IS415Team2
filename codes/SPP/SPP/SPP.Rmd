@@ -219,6 +219,13 @@ hdb <- hdb %>%
 hdb$Postcode <- as.character(hdb$Postcode)
 hdb_sf <- st_as_sf(hdb, coords=c('X', 'Y'), crs='EPSG:3414')
 ```
+```{r}
+hdb_sf <- st_join(mpsz_sf, hdb_sf, join=st_intersects) %>%
+  dplyr::select(SUBZONE_N, PLN_AREA_N, REGION_N, elderly_proportion, Postcode, total_count.y, geometry) %>%
+  rename(resident_count = total_count.y) %>%
+  mutate(elderly_count = resident_count * elderly_proportion) %>%
+  mutate_if(is.numeric, ~replace(., is.na(.), 0))
+```
 
 ```{r}
 mpsz_sf <- left_join(mpsz_sf, popdata2019, by=c('PLN_AREA_N' = 'planning_area', 'SUBZONE_N' = 'subzone'))
@@ -656,7 +663,56 @@ residential_count <- st_join(mpsz_sf, residential_sf, join=st_intersects)
 glimspe(residential_count)
 ```
 
+```{r}
+mpsz_demand_amk <- mpsz_demand %>%
+  filter(PLN_AREA_N == "ANG MO KIO")
+```
 
 ```{r}
-class(amk)
+mpsz_demand_amk_sp <- as_Spatial(mpsz_demand_amk)
+```
+
+```{r}
+coords <- coordinates(mpsz_demand_amk_sp)
+k1 <- knn2nb(knearneigh(coords))
+k1dists <- unlist(nbdists(k1, coords, longlat=FALSE))
+summary(k1dists)
+```
+
+```{r}
+dnb <- dnearneigh(coordinates(mpsz_demand_amk_sp), 0, 1364, longlat = FALSE)
+dnb
+```
+
+```{r}
+plot(mpsz_demand_amk_sp, border = 'lightgrey')
+plot(dnb, coordinates(mpsz_demand_amk_sp), add=TRUE, col='red')
+```
+```{r}
+dnb_lw <- nb2listw(dnb, style = 'B')
+```
+
+```{r}
+summary(dnb_lw)
+```
+
+```{r}
+fips <- order(mpsz_demand_amk_sp$SUBZONE_N)
+gi.fixed <- localG(mpsz_demand_amk_sp$chas_count, dnb_lw)
+gi.fixed
+```
+
+```{r}
+chas.gi <- cbind(mpsz_demand_amk_sp, as.matrix(gi.fixed))
+names(chas.gi)[23] <- "gstat"
+```
+
+
+```{r}
+tm_shape(chas.gi) +
+  tm_fill(col = "gstat", 
+          style = "pretty",
+          palette="-RdBu",
+          title = "local Gi") +
+  tm_borders(alpha = 0.5)
 ```
