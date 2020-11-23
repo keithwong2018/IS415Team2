@@ -7,7 +7,7 @@
 #    http://shiny.rstudio.com/
 #
 
-packages = c('rgdal', 'sf', 'tmap', 'tidyverse', 'sp', 'rgeos','maptools', 'raster', 'spatstat', 'tmaptools', 'spdep', 'OpenStreetMap', 'ggpubr', 'SpatialPosition', 'SpatialAcc', 'dplyr', 'shinycssloaders','plotly')
+packages = c('rgdal', 'sf', 'tmap', 'tidyverse', 'sp', 'rgeos','maptools', 'raster', 'spatstat', 'tmaptools', 'spdep', 'OpenStreetMap', 'ggpubr', 'SpatialPosition', 'SpatialAcc', 'dplyr', 'shinycssloaders','plotly', 'shinythemes')
 for (p in packages){
     if (!require(p, character.only = T)){
         install.packages(p)
@@ -220,121 +220,131 @@ boxmap <- function(vnam,df,legtitle=NA,mtitle,mult=1.5){
         tm_layout(title = mtitle, title.position = c("right","bottom"))
 }
 
-ui <- navbarPage("IS415 Team2",
-           tabPanel("EDA",
-                        column(12,
-                               titlePanel("Spatial Point Pattern Analysis"),
-                                   column(2,
-                                          selectInput('edasel', 'Select Visualisation', choices = varEdaSel, selected = "Elderly Density"),
-                                          checkboxGroupInput("cb_svc", "Select Services",
-                                                             c("CHAS Clinics",
-                                                               "Eldercare Centres",
-                                                               "Silver infocomm"))
-                                   ),
-                                   column(5,
-                                          tmapOutput("boxplot")
-                                   ),
-                                   column(5,
-                                          tmapOutput("sdplot")
-                                   )
-                        ),
-                        column(12), 
-                        column(12,
-                               column(2, 
-                                      ),
-                               
-                               column(3,
-                                      plotlyOutput("plotlychas") 
-                               ),
-                               column(3,
-                                      plotlyOutput("plotlyelder")
-                               ),
-                               column(3,
-                                      plotlyOutput("plotlyinfo")
-                               )
-                        )
-                    ),
-
-           tabPanel("Spatial Point Pattern",
-                    column(12,
-                           titlePanel("Kernal Density Plots"),
-                           column(2,
-                                  selectInput('planningarea', 'Select Planning Area', choices = varPlnArea, selected = "Tampines"),
-                                  radioButtons("kcoptions", "View Cross-k results",
-                                               c("Yes","No"),
-                                               selected = "No")
-                                  
-                           ),
-                           column(3,
-                                  tmapOutput("kdeplotchas") %>% withSpinner(color="#0dc5c1")
-                                  
-                           ),
-                           column(3,
-                                  tmapOutput("kdeploteldercare") %>% withSpinner(color="#0dc5c1")
-                                  
-                           ),
-                           column(3,
-                                  tmapOutput("kdeplotsilverinfo") %>% withSpinner(color="#0dc5c1")
-                                  
-                           ),
-                           
-                    ),
-                    column(12), 
-                    column(12,
-                           column(2, 
-                           ),
-                           
-                           column(3,
-                                  plotOutput("kChas") %>% withSpinner(color="#0dc5c1")
-                           ),
-                           column(3,
-                                  plotOutput("kEldercare") %>% withSpinner(color="#0dc5c1")
-                           ),
-                           column(3,
-                                  plotOutput("kSilverinfo") %>% withSpinner(color="#0dc5c1")
-                           ) 
+ui <- fluidPage(theme=shinytheme('spacelab'),
+        
+          # Navigation Bar
+          navbarPage("Silver", fluid=TRUE, windowTitle='Silver is the New Black', selected='EDA', 
+                     
+                     tabPanel("EDA", value='eda', fluid=TRUE, icon=icon('search'), 
+                              sidebarLayout(position='left', fluid=TRUE, 
+                                            sidebarPanel(width=3, fluid=TRUE, 
+                                                         conditionalPanel(
+                                                           'input.EDAset == "Outlier Analysis"', 
+                                                           selectInput(inputId='boxeda', 
+                                                                       label='Population Variable', 
+                                                                       choices=varEdaSel,
+                                                                       selected='Elderly Density'), 
+                                                           # insert description here
+                                                         ), 
+                                                         conditionalPanel(
+                                                           'input.EDAset == "Distribution Analysis"', 
+                                                           selectInput(inputId='edasel', 
+                                                                       label='Population Variable', 
+                                                                       choices=varEdaSel, 
+                                                                       selected='Elderly Density'), 
+                                                           checkboxGroupInput(inputId='cb_svc', 
+                                                                              label='Facility', 
+                                                                              choices=c('Eldercare Services'='Eldercare Centres', 
+                                                                                        'Silver Infocomm Junctions'='Silver infocomm',
+                                                                                        'CHAS Clinics'='CHAS Clinics'
+                                                                                        ))
+                                                         )
+                                                ), 
+                              
+                                            mainPanel(width=9, fluid=TRUE, 
+                                                      tabsetPanel(
+                                                        id='EDAset', 
+                                                        tabPanel('Outlier Analysis', 
+                                                                 column(9, tmapOutput("boxplot"))
+                                                                 # insert box plot
+                                                                 ), 
+                                                        tabPanel('Distribution Analysis', 
+                                                                 fluidRow(column(9, tmapOutput('sdplot'))), 
+                                                                 fluidRow(), 
+                                                                 fluidRow(
+                                                                   column(3, plotlyOutput('plotlyelder')), 
+                                                                   column(3, plotlyOutput('plotlyinfo')), 
+                                                                   column(3, plotlyOutput('plotlychas'))
+                                                                 )
+                                                                 )
+                                                        
+                                                      )
+                                            )
+                          )
+                    ), 
+                    
+                    tabPanel('SPPA', value='sppa', fluid=TRUE, icon=icon('globe-americas'), 
+                             sidebarLayout(position='left', fluid=TRUE, 
+                                           sidebarPanel(width=3, fluid=TRUE, 
+                                                        selectInput(inputId='planningarea',
+                                                                    label='Planning Area',
+                                                                    choices=varPlnArea, 
+                                                                    selected='Tampines')
+                                                        ), 
+                                           mainPanel(width=9, fluid=TRUE, 
+                                                     id='SPPAset', 
+                                                     tabPanel('Quadrat Analysis', 
+                                                              column(9)
+                                                              ), 
+                                                     tabPanel('KDE Maps', 
+                                                              fluidRow(
+                                                              column(3, tmapOutput('kdeploteldercare') %>% withSpinner(color='#0dc5c1')),
+                                                              column(3, tmapOutput('kdeplotsilverinfo') %>% withSpinner(color='#0dc5c1')),
+                                                              column(3, tmapOutput('kdeplotchas') %>% withSpinner(color='#0dc5c1'))
+                                                              )), 
+                                                     tabPanel('K-Cross Analysis',
+                                                              fluidRow(
+                                                              column(3, plotOutput("kEldercare") %>% withSpinner(color="#0dc5c1")), 
+                                                              column(3, plotOutput("kSilverinfo") %>% withSpinner(color="#0dc5c1")), 
+                                                              column(3, plotOutput("kChas") %>% withSpinner(color="#0dc5c1"))
+                                                              )), 
+                                                     tabPanel('Hotspots & Coldspots', 
+                                                              fluidRow(
+                                                              column(3, tmapOutput("hotspotelder") %>% withSpinner(color="#0dc5c1")), 
+                                                              column(3, tmapOutput("hotspotinfo") %>% withSpinner(color="#0dc5c1")), 
+                                                              column(3, tmapOutput("hotspotchas") %>% withSpinner(color="#0dc5c1"))
+                                                              ))
+                                                     )
+                                           )
+                             ), 
+                    tabPanel('Geographical Accessibility', value='accessibility', fluid=TRUE, icon=icon('globe-asia'), 
+                             sidebarLayout(position='left', fluid=TRUE, 
+                                           sidebarPanel(width=3, fluid=TRUE, 
+                                                        selectInput(inputId='facility', 
+                                                                    label='Facility', 
+                                                                    choices = c('Eldercare Centres', 'Silver Infocomm Junctions', 'CHAS Clinics'), 
+                                                                    selected='Eldercare Centres'),
+                                                        selectInput(inputId='accmeasure', 
+                                                                    label='Accessibility Measure', 
+                                                                    choices = c('SAM', '2SFCA', 'KD2SFCA', 'Hansen'), 
+                                                                    selected='Hansen'), 
+                                                        sliderInput(inputId='capacity', 
+                                                                    label='Capacity', 
+                                                                    min=1, 
+                                                                    max=120, 
+                                                                    value=50,
+                                                                    round=TRUE), 
+                                                        sliderInput(inputId='distance', 
+                                                                    label='Distance Threshold', 
+                                                                    min=0.1, 
+                                                                    max=30, 
+                                                                    round=FALSE, 
+                                                                    value=1)
+                                                        ), 
+                                           mainPanel(width=8, fluid=TRUE, 
+                                                     id='accessibility', 
+                                                     column(8, tmapOutput("accplot") %>% withSpinner(color="#0dc5c1"))
+                                                     )
+                                           )
+                             )
                     )
-           ),
-           tabPanel("Spatial Clustering",
-                    column(12,
-                           titlePanel("Hotspots and Coldspots"),
-                           column(2,
-                                  selectInput('sel_plnarea', 'Select Planning Area', choices = varPlnArea, selected = "Tampines")
-                                  
-                           ),
-                           column(3,
-                                  tmapOutput("hotspotchas") %>% withSpinner(color="#0dc5c1")
-                                  
-                           ),
-                           column(3,
-                                  tmapOutput("hotspotelder") %>% withSpinner(color="#0dc5c1")
-                                  
-                           ),
-                           column(3,
-                                  tmapOutput("hotspotinfo") %>% withSpinner(color="#0dc5c1")
-                                  
-                           ),
-                           
-                    ),
-           ),
-           tabPanel("Accessibility", 
-                    fixedRow(
-                      column(12,
-                             titlePanel("Accessibility Analysis"),
-                             column(2,
-                                    selectInput(inputId='facility', label='Select Facility', choices = c('Eldercare Centres', 'Silver Infocomm Junctions', 'CHAS Clinics'), selected='Eldercare Centres'),
-                                    sliderInput(inputId='capacity', label='Select Capacity', min=1, max=150, value=50,round=TRUE), 
-                                    sliderInput(inputId='distance', label='Select Distance Threshold', min=0.1, max=30, round=FALSE, value=1)
-                                    
-                             ),
-                             column(8,
-                                    tmapOutput("accplot") %>% withSpinner(color="#0dc5c1")
-                                    
-                             ) 
-                             
-                      )
-                    ))
-)
+          )
+           
+
+           
+           
+           
+
 
 
 server <- function(input, output) {
@@ -344,11 +354,11 @@ server <- function(input, output) {
   })
 
     output$boxplot <- renderTmap({
-        if(input$edasel == "Elderly Density"){
+        if(input$boxeda == "Elderly Density"){
             selected = "Elderly_Density"
             boxmap(selected, mpsz_demand, mtitle="Elderly Distribution by Density")
         }
-        else if (input$edasel == "Elderly Count"){
+        else if (input$boxeda == "Elderly Count"){
             selected = "elderly_count"
             boxmap(selected, mpsz_demand, mtitle="Elderly Distribution by Count")
         }
@@ -381,15 +391,15 @@ server <- function(input, output) {
       }
     
       distmat = as.matrix(CreateDistMatrix(knownpts=demand, unknownpts=supply, longlat=FALSE)/1000)
-      temp <- data.frame(ac(demand$elderly_count,supply$capacity, distmat, d0 = input$distance, power = 2, family = 'SAM'))
-      colnames(temp) <- 'accSAM'
+      temp <- data.frame(ac(demand$elderly_count,supply$capacity, distmat, d0 = input$distance, power = 2, family = input$accmeasure))
+      colnames(temp) <- 'acc'
       temp <- tibble::as_tibble(temp)
       result_sf <- bind_cols(temp_sf, temp)
       
       # Generate the Map
       tm_shape(result_sf)+
         tm_borders(alpha=0.6)+
-        tm_fill(col='accSAM', style='pretty')
+        tm_fill(col='acc', style='pretty')
       
     })
     
@@ -892,7 +902,7 @@ server <- function(input, output) {
         
         ppp.km <- rescale(ppp_chas, 1000, "km")
         
-        kde <- density(ppp.km, sigma=0.20, edge=TRUE, kernel="gaussian")
+        kde <- density(ppp.km, sigma=bw.diggle, edge=TRUE, kernel="gaussian")
         
         gridded_kde_bw <- as.SpatialGridDataFrame.im(kde)
         
@@ -913,7 +923,7 @@ server <- function(input, output) {
     }) 
     
       output$kChas <- renderPlot({
-        if(input$kcoptions == "Yes"){
+        
           pln_area_selected <- mpsz_sp[mpsz_sp@data$PLN_AREA_N == input$planningarea,]
           
           owin <- as(pln_area_selected, "owin")
@@ -929,7 +939,7 @@ server <- function(input, output) {
           plot(K_chas, . - r ~ r, 
                xlab="d", ylab="L(d)-r", 
                main="Chas Clinics")
-        }
+        
       })
     
     
@@ -950,7 +960,7 @@ server <- function(input, output) {
         
         ppp.km <- rescale(ppp_elder, 1000, "km")
         
-        kde <- density(ppp.km, sigma=0.20, edge=TRUE, kernel="gaussian")
+        kde <- density(ppp.km, sigma=bw.diggle, edge=TRUE, kernel="gaussian")
         
         gridded_kde_bw <- as.SpatialGridDataFrame.im(kde)
         
@@ -971,7 +981,7 @@ server <- function(input, output) {
     }) 
     
     output$kEldercare <- renderPlot({
-      if(input$kcoptions == "Yes"){
+      
         pln_area_selected <- mpsz_sp[mpsz_sp@data$PLN_AREA_N == input$planningarea,]
         
         owin <- as(pln_area_selected, "owin")
@@ -987,7 +997,7 @@ server <- function(input, output) {
         plot(K_elder, . - r ~ r, 
              xlab="d", ylab="L(d)-r", 
              main="Eldercare Facilities")
-      }
+      
     })
     
     output$kdeplotsilverinfo <- renderTmap({
@@ -1007,7 +1017,7 @@ server <- function(input, output) {
         
         ppp.km <- rescale(ppp_silver, 1000, "km")
         
-        kde <- density(ppp.km, sigma=0.20, edge=TRUE, kernel="gaussian")
+        kde <- density(ppp.km, sigma=bw.diggle, edge=TRUE, kernel="gaussian")
         
         gridded_kde_bw <- as.SpatialGridDataFrame.im(kde)
         
@@ -1028,7 +1038,7 @@ server <- function(input, output) {
     }) 
     
     output$kSilverinfo <- renderPlot({
-      if(input$kcoptions == "Yes"){
+      
         pln_area_selected <- mpsz_sp[mpsz_sp@data$PLN_AREA_N == input$planningarea,]
         
         owin <- as(pln_area_selected, "owin")
@@ -1044,7 +1054,7 @@ server <- function(input, output) {
         plot(K_info, . - r ~ r, 
              xlab="d", ylab="L(d)-r", 
              main="Silver infocomm Centres")
-      }
+      
     })
     
     output$text <- renderText({
@@ -1097,7 +1107,7 @@ server <- function(input, output) {
     output$hotspotchas <- renderTmap({
       #selecting planning area via user input
       mpsz_demand_selected <- mpsz_demand %>%
-        filter(PLN_AREA_N == input$sel_plnarea)
+        filter(PLN_AREA_N == input$planningarea)
       
       #coverting to sp polygons
       mpsz_demand_selected_sp <- as_Spatial(mpsz_demand_selected)
@@ -1134,7 +1144,7 @@ server <- function(input, output) {
     output$hotspotelder <- renderTmap({
       #selecting planning area via user input
       mpsz_demand_selected <- mpsz_demand %>%
-        filter(PLN_AREA_N == input$sel_plnarea)
+        filter(PLN_AREA_N == input$planningarea)
       
       #coverting to sp polygons
       mpsz_demand_selected_sp <- as_Spatial(mpsz_demand_selected)
@@ -1170,7 +1180,7 @@ server <- function(input, output) {
     output$hotspotinfo <- renderTmap({
       #selecting planning area via user input
       mpsz_demand_selected <- mpsz_demand %>%
-        filter(PLN_AREA_N == input$sel_plnarea)
+        filter(PLN_AREA_N == input$planningarea)
       
       #coverting to sp polygons
       mpsz_demand_selected_sp <- as_Spatial(mpsz_demand_selected)
