@@ -161,60 +161,15 @@ glimpse(hdb_sf)
 sum(is.na(hdb_sf))
 ```
 
-
-
-
-
-
-
-
-## Visualisations
 ```{r}
-tm_shape(sg_osm)+ 
-  tm_layout(legend.outside = TRUE)+
-  tm_rgb()+
-tm_shape(sg)+
-  tm_borders(alpha=0.5, col = "black", lwd = 1)+
-tm_shape(chas_sp)+
-  tm_dots(col = "label",
-          title="",
-          alpha=0.7,
-          size = 0.1,
-          border.col = "black",
-          border.lwd = 5,
-          palette=c("red"))+
-  tm_shape(eldercare_sp)+
-  tm_dots(col = "label",
-          title="",
-          alpha=0.7,
-          size = 0.1,
-          border.col = "black",
-          border.lwd = 5,
-          palette=c("green"))+
-  tm_shape(infocomm_sp)+
-  tm_dots(col = "label",
-          title="",
-          alpha=0.7,
-          size = 0.1,
-          border.col = "black",
-          border.lwd = 5,
-          palette=c("blue")) +
-    tm_layout("Facility Type",
-            title.size = 1,
-            legend.text.size = 1,
-            legend.title.size = 1)
-```
-
-```{r}
-plot(mpsz_sp, border="darkgrey")+
-plot(chas_spatialpoint, add=TRUE)
+plot(hdb_sf)
 ```
 
 
-```{r}
-sg_owin <- as(mpsz_sp, "owin")
-plot(sg_owin)
-```
+
+
+
+
 
 
 

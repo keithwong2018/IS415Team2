@@ -98,7 +98,7 @@ mpsz_demand$`eldercare_count` <- lengths(st_intersects(mpsz_sf,eldercare_sf))
 mpsz_demand$`infocomm_count` <- lengths(st_intersects(mpsz_sf,infocomm_sf))
 
 # Join HDB with MP14 Data
-hdb_sf <- st_join(mpsz_sf, hdb_sf, join=st_intersects) %>%
+hdb_mpsz <- st_join(mpsz_sf, hdb_sf, join=st_intersects) %>%
   dplyr::select(SUBZONE_N, PLN_AREA_N, REGION_N, elderly_proportion, Postcode, total_count.y, geometry) %>%
   rename(resident_count = total_count.y) %>%
   mutate(elderly_count = resident_count * elderly_proportion) %>%
@@ -223,7 +223,10 @@ boxmap <- function(vnam,df,legtitle=NA,mtitle,mult=1.5){
 ui <- fluidPage(theme=shinytheme('spacelab'),
         
           # Navigation Bar
-          navbarPage("Silver", fluid=TRUE, windowTitle='Silver is the New Black', selected='EDA', 
+          navbarPage("Silver is the New Black", fluid=TRUE, windowTitle='Silver is the New Black', selected='EDA', 
+                     
+                     tabPanel("Home", value='home', fluid=TRUE, icon=icon('home')
+                              ), 
                      
                      tabPanel("EDA", value='eda', fluid=TRUE, icon=icon('search'), 
                               sidebarLayout(position='left', fluid=TRUE, 
@@ -233,7 +236,7 @@ ui <- fluidPage(theme=shinytheme('spacelab'),
                                                            selectInput(inputId='boxeda', 
                                                                        label='Population Variable', 
                                                                        choices=varEdaSel,
-                                                                       selected='Elderly Density'), 
+                                                                       selected='Elderly Proportion'), 
                                                            # insert description here
                                                          ), 
                                                          conditionalPanel(
@@ -254,10 +257,6 @@ ui <- fluidPage(theme=shinytheme('spacelab'),
                                             mainPanel(width=9, fluid=TRUE, 
                                                       tabsetPanel(
                                                         id='EDAset', 
-                                                        tabPanel('Outlier Analysis', 
-                                                                 column(9, tmapOutput("boxplot"))
-                                                                 # insert box plot
-                                                                 ), 
                                                         tabPanel('Distribution Analysis', 
                                                                  fluidRow(column(9, tmapOutput('sdplot'))), 
                                                                  fluidRow(), 
@@ -266,6 +265,10 @@ ui <- fluidPage(theme=shinytheme('spacelab'),
                                                                    column(3, plotlyOutput('plotlyinfo')), 
                                                                    column(3, plotlyOutput('plotlychas'))
                                                                  )
+                                                        ), 
+                                                        tabPanel('Outlier Analysis', 
+                                                                 fluidRow(column(9, tmapOutput("boxmap"))), 
+                                                                 fluidRow(column(9, plotlyOutput('boxplot')))
                                                                  )
                                                         
                                                       )
@@ -276,34 +279,56 @@ ui <- fluidPage(theme=shinytheme('spacelab'),
                     tabPanel('SPPA', value='sppa', fluid=TRUE, icon=icon('globe-americas'), 
                              sidebarLayout(position='left', fluid=TRUE, 
                                            sidebarPanel(width=3, fluid=TRUE, 
-                                                        selectInput(inputId='planningarea',
-                                                                    label='Planning Area',
-                                                                    choices=varPlnArea, 
-                                                                    selected='Tampines')
+                                                        conditionalPanel(
+                                                          'input.SPPAset == "Overview"', 
+                                                          selectInput(inputId='overviewfacility', 
+                                                                      label= "Facility", 
+                                                                      choices=c('Eldercare Services', 'Silver Infocomm Junctions', 'CHAS Clinics'), 
+                                                                      selected='Eldercare Services')
+                                                        ), 
+                                                        conditionalPanel(
+                                                          'input.SPPAset == "Quadrat Analysis" | input.SPPAset == "KDE Maps" | input.SPPAset == "K-Cross Analysis" | input.SPPAset == "Hotspots & Coldspots"', 
+                                                          selectInput(inputId='planningarea',
+                                                                      label='Planning Area',
+                                                                      choices=varPlnArea, 
+                                                                      selected='Tampines')
+                                                        )
                                                         ), 
                                            mainPanel(width=9, fluid=TRUE, 
-                                                     id='SPPAset', 
-                                                     tabPanel('Quadrat Analysis', 
-                                                              column(9)
-                                                              ), 
-                                                     tabPanel('KDE Maps', 
-                                                              fluidRow(
-                                                              column(3, tmapOutput('kdeploteldercare') %>% withSpinner(color='#0dc5c1')),
-                                                              column(3, tmapOutput('kdeplotsilverinfo') %>% withSpinner(color='#0dc5c1')),
-                                                              column(3, tmapOutput('kdeplotchas') %>% withSpinner(color='#0dc5c1'))
-                                                              )), 
-                                                     tabPanel('K-Cross Analysis',
-                                                              fluidRow(
-                                                              column(3, plotOutput("kEldercare") %>% withSpinner(color="#0dc5c1")), 
-                                                              column(3, plotOutput("kSilverinfo") %>% withSpinner(color="#0dc5c1")), 
-                                                              column(3, plotOutput("kChas") %>% withSpinner(color="#0dc5c1"))
-                                                              )), 
-                                                     tabPanel('Hotspots & Coldspots', 
-                                                              fluidRow(
-                                                              column(3, tmapOutput("hotspotelder") %>% withSpinner(color="#0dc5c1")), 
-                                                              column(3, tmapOutput("hotspotinfo") %>% withSpinner(color="#0dc5c1")), 
-                                                              column(3, tmapOutput("hotspotchas") %>% withSpinner(color="#0dc5c1"))
-                                                              ))
+                                                     tabsetPanel(
+                                                       id='SPPAset', 
+                                                       tabPanel('Overview', 
+                                                                fluidRow(
+                                                                  column(5.5, plotOutput('quadplotsg') %>% withSpinner(color='#0dc5c1'))
+                                                                ), 
+                                                                fluidRow(
+                                                                  column(5.5, plotOutput('kdeplotsg') %>% withSpinner(color='#0dc5c1'))
+                                                                ), 
+                                                                fluidRow(
+                                                                  column(5.5, plotOutput('hotspotsg') %>% withSpinner(color='#0dc5c1'))
+                                                                )
+                                                        ),
+                                                       tabPanel('Quadrat Analysis', 
+                                                                column(3, plotOutput('quadploteldercare') %>% withSpinner(color='#0dc5c1')), 
+                                                                column(3, plotOutput('quadplotsilverinfo') %>% withSpinner(color='#0dc5c1')),
+                                                                column(3, plotOutput('quadplotchas') %>% withSpinner(color='#0dc5c1'))
+                                                        ), 
+                                                       tabPanel('KDE Maps', 
+                                                                column(3, tmapOutput('kdeploteldercare') %>% withSpinner(color='#0dc5c1')),
+                                                                column(3, tmapOutput('kdeplotsilverinfo') %>% withSpinner(color='#0dc5c1')),
+                                                                column(3, tmapOutput('kdeplotchas') %>% withSpinner(color='#0dc5c1'))
+                                                       ), 
+                                                       tabPanel('K-Cross Analysis', 
+                                                                column(3, plotOutput('kEldercare') %>% withSpinner(color='#0dc5c1')),
+                                                                column(3, plotOutput('kSilverinfo') %>% withSpinner(color='#0dc5c1')),
+                                                                column(3, plotOutput('kChas') %>% withSpinner(color='#0dc5c1'))
+                                                      ), 
+                                                      tabPanel('Hotspots & Coldspots', 
+                                                               column(3, tmapOutput('hotspotelder') %>% withSpinner(color='#0dc5c1')),
+                                                               column(3, tmapOutput('hotspotinfo') %>% withSpinner(color='#0dc5c1')),
+                                                               column(3, tmapOutput('hotspotchas') %>% withSpinner(color='#0dc5c1'))
+                                                      )
+                                                     )
                                                      )
                                            )
                              ), 
@@ -312,8 +337,8 @@ ui <- fluidPage(theme=shinytheme('spacelab'),
                                            sidebarPanel(width=3, fluid=TRUE, 
                                                         selectInput(inputId='facility', 
                                                                     label='Facility', 
-                                                                    choices = c('Eldercare Centres', 'Silver Infocomm Junctions', 'CHAS Clinics'), 
-                                                                    selected='Eldercare Centres'),
+                                                                    choices = c('Eldercare Services', 'Silver Infocomm Junctions', 'CHAS Clinics'), 
+                                                                    selected='Eldercare Services'),
                                                         selectInput(inputId='accmeasure', 
                                                                     label='Accessibility Measure', 
                                                                     choices = c('SAM', '2SFCA', 'KD2SFCA', 'Hansen'), 
@@ -327,13 +352,22 @@ ui <- fluidPage(theme=shinytheme('spacelab'),
                                                         sliderInput(inputId='distance', 
                                                                     label='Distance Threshold', 
                                                                     min=0.1, 
-                                                                    max=30, 
+                                                                    max=40, 
                                                                     round=FALSE, 
                                                                     value=1)
                                                         ), 
-                                           mainPanel(width=8, fluid=TRUE, 
+                                           mainPanel(width=9, fluid=TRUE, 
                                                      id='accessibility', 
-                                                     column(8, tmapOutput("accplot") %>% withSpinner(color="#0dc5c1"))
+                                                     tabsetPanel(
+                                                       id='accessibility', 
+                                                       tabPanel('Accessilibility Maps', 
+                                                                fluidRow(column(9, tmapOutput("accsubzoneplot") %>% withSpinner(color="#0dc5c1"))), 
+                                                                fluidRow(column(9, tmapOutput("acchdbplot") %>% withSpinner(color="#0dc5c1")))
+                                                                ), 
+                                                       tabPanel('Statistics', 
+                                                                fluidRow(column(9, plotOutput ("cda") %>% withSpinner(color='#0dc5c1')))
+                                                                )
+                                                     )
                                                      )
                                            )
                              )
@@ -352,8 +386,9 @@ server <- function(input, output) {
   data <- eventReactive(input$kcoptions,{
     rnorm(1:100000)
   })
-
-    output$boxplot <- renderTmap({
+  
+  # Boxmap
+    output$boxmap <- renderTmap({
         if(input$boxeda == "Elderly Density"){
             selected = "Elderly_Density"
             boxmap(selected, mpsz_demand, mtitle="Elderly Distribution by Density")
@@ -368,16 +403,43 @@ server <- function(input, output) {
         }
     })
     
+    # Box plots
+    output$boxplot <- renderPlotly({
+      if (input$boxeda == 'Elderly Density'){
+        selected='Elderly_Density'
+        boxplot <- plot_ly(mpsz_demand, x=selected, type='box')
+        boxplot <- boxplot %>%
+          layout(title='Disribution of Elderly Density', 
+                 yaxis = list(title='Elderly Density'))
+      }
+      else if (input$boxeda == 'Elderly Count'){
+        selected='elderly_count'
+        boxplot <- plot_ly(mpsz_demand, x=selected, type='box')
+        boxplot <- boxplot %>%
+          layout(title='Disribution of Elderly Count', 
+                 yaxis = list(title='Elderly Count'))
+      }
+      else {
+        selected='elderly_proportion'
+        boxplot <- plot_ly(mpsz_demand, x=selected, type='box')
+        boxplot <- boxplot %>%
+          layout(title='Disribution of Elderly Proportion', 
+                 yaxis = list(title='Elderly Proportion'))
+      }
+      boxplot %>%
+        hide_legend() 
+      boxplot
+    })
+    
     
     # Accessibility Maps
-    
-    output$accplot <- renderTmap({
-      demand <- hdb_sf 
-      temp_sf <- hdb_sf 
+    output$accsubzoneplot <- renderTmap({
+      demand <- hdb_mpsz
+      temp_sf <- hdb_mpsz 
       bindingbox <- st_bbox(mpsz_sf)
       selected_osm <- read_osm(bindingbox, ext=1.1)
       
-      if (input$facility == 'Eldercare Centres'){
+      if (input$facility == 'Eldercare Services'){
         supply <- eldercare_sf %>% 
           mutate(capacity = input$capacity)
       }
@@ -399,434 +461,112 @@ server <- function(input, output) {
       # Generate the Map
       tm_shape(result_sf)+
         tm_borders(alpha=0.6)+
-        tm_fill(col='acc', style='pretty')
+        tm_fill(col='acc', style='pretty') 
       
     })
     
-    
-    
-    #Supply and Demand of 3 different elder care facilities by density and elderly count
-    output$sdplot <- renderTmap({
-        if(input$edasel == "Elderly Density" & is.null(input$cb_svc)){
-            selected = "Elderly_Density"
-            
-            tm_shape(mpsz_demand) + 
-                tm_fill(c(selected),
-                        title = "Elderly Density",
-                        style = "jenks", 
-                        palette = "Blues",
-                        popup.vars=c("Subzone Name"="SUBZONE_N", 
-                                     "Planning Area Name"="PLN_AREA_N", 
-                                     "Elderly Density"=selected),
-                        showNA = FALSE) +
-                tm_borders(lwd = 0.1,  alpha = 1)
-        }
-        
-        else if(input$edasel == "Elderly Density" & "CHAS Clinics" %in% input$cb_svc & "Eldercare Centres" %in% input$cb_svc & "Silver infocomm" %in% input$cb_svc){
-            selected = "Elderly_Density"
-            
-            tm_shape(mpsz_demand) + 
-                tm_fill(c(selected),
-                        title = "Elderly Density",
-                        style = "jenks", 
-                        palette = "Blues",
-                        popup.vars=c("Subzone Name"="SUBZONE_N", 
-                                     "Planning Area Name"="PLN_AREA_N", 
-                                     "Elderly Density"=selected),
-                        showNA = FALSE) +
-                tm_borders(lwd = 0.1,  alpha = 1) +
-                tm_shape(chas_sf) + tm_dots("red") +
-                tm_shape(eldercare_sf) + tm_dots("blue")+
-                tm_shape(infocomm_sf) + tm_dots("green") 
-        }
-        
-        else if(input$edasel == "Elderly Density" & "CHAS Clinics" %in% input$cb_svc & "Eldercare Centres" %in% input$cb_svc){
-            selected = "Elderly_Density"
-            
-            tm_shape(mpsz_demand) + 
-                tm_fill(c(selected),
-                        title = "Elderly Density",
-                        style = "jenks", 
-                        palette = "Blues",
-                        popup.vars=c("Subzone Name"="SUBZONE_N", 
-                                     "Planning Area Name"="PLN_AREA_N", 
-                                     "Elderly Density"=selected),
-                        showNA = FALSE) +
-                tm_borders(lwd = 0.1,  alpha = 1) +
-                tm_shape(chas_sf) + tm_dots("red") +
-                tm_shape(eldercare_sf) + tm_dots("blue")
-        }
-        
-        else if(input$edasel == "Elderly Density" & "CHAS Clinics" %in% input$cb_svc & "Silver infocomm" %in% input$cb_svc){
-            selected = "Elderly_Density"
-            
-            tm_shape(mpsz_demand) + 
-                tm_fill(c(selected),
-                        title = "Elderly Density",
-                        style = "jenks", 
-                        palette = "Blues",
-                        popup.vars=c("Subzone Name"="SUBZONE_N", 
-                                     "Planning Area Name"="PLN_AREA_N", 
-                                     "Elderly Density"=selected),
-                        showNA = FALSE) +
-                tm_borders(lwd = 0.1,  alpha = 1) +
-                tm_shape(chas_sf) + tm_dots("red") +
-                tm_shape(infocomm_sf) + tm_dots("green") 
-        }
-        
-        else if(input$edasel == "Elderly Density" & "Eldercare Centres" %in% input$cb_svc & "Silver infocomm" %in% input$cb_svc){
-            selected = "Elderly_Density"
-            
-            tm_shape(mpsz_demand) + 
-                tm_fill(c(selected),
-                        title = "Elderly Density",
-                        style = "jenks", 
-                        palette = "Blues",
-                        popup.vars=c("Subzone Name"="SUBZONE_N", 
-                                     "Planning Area Name"="PLN_AREA_N", 
-                                     "Elderly Density"=selected),
-                        showNA = FALSE) +
-                tm_borders(lwd = 0.1,  alpha = 1) +
-                tm_shape(eldercare_sf) + tm_dots("blue")+
-                tm_shape(infocomm_sf) + tm_dots("green") 
-        }
-        
-        
-        else if(input$edasel == "Elderly Density" & "CHAS Clinics" %in% input$cb_svc){
-            selected = "Elderly_Density"
-            
-            tm_shape(mpsz_demand) + 
-                tm_fill(c(selected),
-                        title = "Elderly Density",
-                        style = "jenks", 
-                        palette = "Blues",
-                        popup.vars=c("Subzone Name"="SUBZONE_N", 
-                                     "Planning Area Name"="PLN_AREA_N", 
-                                     "Elderly Density"=selected),
-                        showNA = FALSE) +
-                tm_borders(lwd = 0.1,  alpha = 1) +
-                tm_shape(chas_sf) + tm_dots("red")
-        }
-        
-        else if(input$edasel == "Elderly Density" & "Eldercare Centres" %in% input$cb_svc){
-            selected = "Elderly_Density"
-            
-            tm_shape(mpsz_demand) + 
-                tm_fill(c(selected),
-                        title = "Elderly Density",
-                        style = "jenks", 
-                        palette = "Blues",
-                        popup.vars=c("Subzone Name"="SUBZONE_N", 
-                                     "Planning Area Name"="PLN_AREA_N", 
-                                     "Elderly Density"=selected),
-                        showNA = FALSE) +
-                tm_borders(lwd = 0.1,  alpha = 1) +
-                tm_shape(eldercare_sf) + tm_dots("blue")
-        }
-        
-        else if(input$edasel == "Elderly Density" & "Silver infocomm" %in% input$cb_svc){
-            selected = "Elderly_Density"
-            
-            tm_shape(mpsz_demand) + 
-                tm_fill(c(selected),
-                        title = "Elderly Density",
-                        style = "jenks", 
-                        palette = "Blues",
-                        popup.vars=c("Subzone Name"="SUBZONE_N", 
-                                     "Planning Area Name"="PLN_AREA_N", 
-                                     "Elderly Density"=selected),
-                        showNA = FALSE) +
-                tm_borders(lwd = 0.1,  alpha = 1) +
-                tm_shape(infocomm_sf) + tm_dots("green")
-        }
-        
-        else if(input$edasel == "Elderly Count" & is.null(input$cb_svc)){
-            selected = "elderly_count"
-            
-            tm_shape(mpsz_demand) + 
-                tm_fill(c(selected),
-                        title = "Elderly Population",
-                        breaks = c(0, 2500 ,5000, 7500, 10000, 12500, 15000, 17500, 20000),
-                        palette = "Blues",
-                        popup.vars=c("Subzone Name"="SUBZONE_N", 
-                                     "Planning Area Name"="PLN_AREA_N", 
-                                     "Elderly Population"=selected),
-                        showNA = FALSE) +
-                tm_borders(lwd = 0.1,  alpha = 1)
-        }
-        
-        else if(input$edasel == "Elderly Count" & "CHAS Clinics" %in% input$cb_svc & "Eldercare Centres" %in% input$cb_svc & "Silver infocomm" %in% input$cb_svc){
-            selected = "elderly_count"
-            
-            tm_shape(mpsz_demand) + 
-                tm_fill(c(selected),
-                        title = "Elderly Population",
-                        breaks = c(0, 2500 ,5000, 7500, 10000, 12500, 15000, 17500, 20000),
-                        palette = "Blues",
-                        popup.vars=c("Subzone Name"="SUBZONE_N", 
-                                     "Planning Area Name"="PLN_AREA_N", 
-                                     "Elderly Population"=selected),
-                        showNA = FALSE) +
-                tm_borders(lwd = 0.1,  alpha = 1) +
-                tm_shape(chas_sf) + tm_dots("red") +
-                tm_shape(eldercare_sf) + tm_dots("blue")+
-                tm_shape(infocomm_sf) + tm_dots("green") 
-        }
-        
-        else if(input$edasel == "Elderly Count" & "CHAS Clinics" %in% input$cb_svc & "Eldercare Centres" %in% input$cb_svc){
-            selected = "elderly_count"
-            
-            tm_shape(mpsz_demand) + 
-                tm_fill(c(selected),
-                        title = "Elderly Population",
-                        breaks = c(0, 2500 ,5000, 7500, 10000, 12500, 15000, 17500, 20000),
-                        palette = "Blues",
-                        popup.vars=c("Subzone Name"="SUBZONE_N", 
-                                     "Planning Area Name"="PLN_AREA_N", 
-                                     "Elderly Population"=selected),
-                        showNA = FALSE) +
-                tm_borders(lwd = 0.1,  alpha = 1) +
-                tm_shape(chas_sf) + tm_dots("red") +
-                tm_shape(eldercare_sf) + tm_dots("blue")
-        }
-        
-        else if(input$edasel == "Elderly Count" & "CHAS Clinics" %in% input$cb_svc & "Silver infocomm" %in% input$cb_svc){
-            selected = "elderly_count"
-            
-            tm_shape(mpsz_demand) + 
-                tm_fill(c(selected),
-                        title = "Elderly Population",
-                        breaks = c(0, 2500 ,5000, 7500, 10000, 12500, 15000, 17500, 20000),
-                        palette = "Blues",
-                        popup.vars=c("Subzone Name"="SUBZONE_N", 
-                                     "Planning Area Name"="PLN_AREA_N", 
-                                     "Elderly Population"=selected),
-                        showNA = FALSE) +
-                tm_borders(lwd = 0.1,  alpha = 1) +
-                tm_shape(chas_sf) + tm_dots("red") +
-                tm_shape(infocomm_sf) + tm_dots("green")
-        }
-        
-        else if(input$edasel == "Elderly Count" & "Eldercare Centres" %in% input$cb_svc & "Silver infocomm" %in% input$cb_svc){
-            selected = "elderly_count"
-            
-            tm_shape(mpsz_demand) + 
-                tm_fill(c(selected),
-                        title = "Elderly Population",
-                        breaks = c(0, 2500 ,5000, 7500, 10000, 12500, 15000, 17500, 20000),
-                        palette = "Blues",
-                        popup.vars=c("Subzone Name"="SUBZONE_N", 
-                                     "Planning Area Name"="PLN_AREA_N", 
-                                     "Elderly Population"=selected),
-                        showNA = FALSE) +
-                tm_borders(lwd = 0.1,  alpha = 1) +
-                tm_shape(eldercare_sf) + tm_dots("blue")+
-                tm_shape(infocomm_sf) + tm_dots("green") 
-        }
-        
-        else if(input$edasel == "Elderly Count" & "CHAS Clinics" %in% input$cb_svc){
-            selected = "elderly_count"
-            
-            tm_shape(mpsz_demand) + 
-                tm_fill(c(selected),
-                        title = "Elderly Population",
-                        breaks = c(0, 2500 ,5000, 7500, 10000, 12500, 15000, 17500, 20000),
-                        palette = "Blues",
-                        popup.vars=c("Subzone Name"="SUBZONE_N", 
-                                     "Planning Area Name"="PLN_AREA_N", 
-                                     "Elderly Population"=selected),
-                        showNA = FALSE) +
-                tm_borders(lwd = 0.1,  alpha = 1) +
-                tm_shape(chas_sf) + tm_dots("red")
-        }
-        
-        else if(input$edasel == "Elderly Count" & "Eldercare Centres" %in% input$cb_svc){
-            selected = "elderly_count"
-            
-            tm_shape(mpsz_demand) + 
-                tm_fill(c(selected),
-                        title = "Elderly Population",
-                        breaks = c(0, 2500 ,5000, 7500, 10000, 12500, 15000, 17500, 20000),
-                        palette = "Blues",
-                        popup.vars=c("Subzone Name"="SUBZONE_N", 
-                                     "Planning Area Name"="PLN_AREA_N", 
-                                     "Elderly Population"=selected),
-                        showNA = FALSE) +
-                tm_borders(lwd = 0.1,  alpha = 1) +
-                tm_shape(eldercare_sf) + tm_dots("blue")
-        }
-        
-        else if(input$edasel == "Elderly Count" & "Silver infocomm" %in% input$cb_svc){
-            selected = "elderly_count"
-            
-            tm_shape(mpsz_demand) + 
-                tm_fill(c(selected),
-                        title = "Elderly Population",
-                        breaks = c(0, 2500 ,5000, 7500, 10000, 12500, 15000, 17500, 20000),
-                        palette = "Blues",
-                        popup.vars=c("Subzone Name"="SUBZONE_N", 
-                                     "Planning Area Name"="PLN_AREA_N", 
-                                     "Elderly Population"=selected),
-                        showNA = FALSE) +
-                tm_borders(lwd = 0.1,  alpha = 1) +
-                tm_shape(infocomm_sf) + tm_dots("green") 
-        }
+    output$acchdbplot <- renderTmap({
+      demand <- hdb_sf 
+      temp_sf <- hdb_sf 
+      bindingbox <- st_bbox(mpsz_sf)
+      selected_osm <- read_osm(bindingbox, ext=1.1)
       
-        else if(input$edasel == "Elderly Proportion" & is.null(input$cb_svc)){
-          selected = "elderly_proportion"
-          
-          tm_shape(mpsz_demand) + 
-            tm_fill(c(selected),
-                    title = "Elderly Proportion",
-                    style = "jenks", 
-                    palette = "Blues",
-                    popup.vars=c("Subzone Name"="SUBZONE_N", 
-                                 "Planning Area Name"="PLN_AREA_N", 
-                                 "Elderly Proportion"=selected),
-                    showNA = FALSE) +
-            tm_borders(lwd = 0.1,  alpha = 1)
-        }
-        
-        else if(input$edasel == "Elderly Proportion" & "CHAS Clinics" %in% input$cb_svc & "Eldercare Centres" %in% input$cb_svc & "Silver infocomm" %in% input$cb_svc){
-          selected = "elderly_proportion"
-          
-          tm_shape(mpsz_demand) + 
-            tm_fill(c(selected),
-                    title = "Elderly Proportion",
-                    style = "jenks", 
-                    palette = "Blues",
-                    popup.vars=c("Subzone Name"="SUBZONE_N", 
-                                 "Planning Area Name"="PLN_AREA_N", 
-                                 "Elderly Proportion"=selected),
-                    showNA = FALSE) +
-            tm_borders(lwd = 0.1,  alpha = 1) +
-            tm_shape(chas_sf) + tm_dots("red") +
-            tm_shape(eldercare_sf) + tm_dots("blue")+
-            tm_shape(infocomm_sf) + tm_dots("green") 
-        }
-        
-        else if(input$edasel == "Elderly Proportion" & "CHAS Clinics" %in% input$cb_svc & "Eldercare Centres" %in% input$cb_svc){
-          selected = "elderly_proportion"
-          
-          tm_shape(mpsz_demand) + 
-            tm_fill(c(selected),
-                    title = "Elderly Proportion",
-                    style = "jenks", 
-                    palette = "Blues",
-                    popup.vars=c("Subzone Name"="SUBZONE_N", 
-                                 "Planning Area Name"="PLN_AREA_N", 
-                                 "Elderly Proportion"=selected),
-                    showNA = FALSE) +
-            tm_borders(lwd = 0.1,  alpha = 1) +
-            tm_shape(chas_sf) + tm_dots("red") +
-            tm_shape(eldercare_sf) + tm_dots("blue")
-        }
-        
-        else if(input$edasel == "Elderly Proportion" & "CHAS Clinics" %in% input$cb_svc & "Silver infocomm" %in% input$cb_svc){
-          selected = "elderly_proportion"
-          
-          tm_shape(mpsz_demand) + 
-            tm_fill(c(selected),
-                    title = "Elderly Proportion",
-                    style = "jenks", 
-                    palette = "Blues",
-                    popup.vars=c("Subzone Name"="SUBZONE_N", 
-                                 "Planning Area Name"="PLN_AREA_N", 
-                                 "Elderly Proportion"=selected),
-                    showNA = FALSE) +
-            tm_borders(lwd = 0.1,  alpha = 1) +
-            tm_shape(chas_sf) + tm_dots("red") +
-            tm_shape(infocomm_sf) + tm_dots("green") 
-        }
-        
-        else if(input$edasel == "Elderly Proportion" & "Eldercare Centres" %in% input$cb_svc & "Silver infocomm" %in% input$cb_svc){
-          selected = "elderly_proportion"
-          
-          tm_shape(mpsz_demand) + 
-            tm_fill(c(selected),
-                    title = "Elderly Proportion",
-                    style = "jenks", 
-                    palette = "Blues",
-                    popup.vars=c("Subzone Name"="SUBZONE_N", 
-                                 "Planning Area Name"="PLN_AREA_N", 
-                                 "Elderly Proportion"=selected),
-                    showNA = FALSE) +
-            tm_borders(lwd = 0.1,  alpha = 1) +
-            tm_shape(eldercare_sf) + tm_dots("blue")+
-            tm_shape(infocomm_sf) + tm_dots("green") 
-        }
-        
-        
-        else if(input$edasel == "Elderly Proportion" & "CHAS Clinics" %in% input$cb_svc){
-          selected = "elderly_proportion"
-          
-          tm_shape(mpsz_demand) + 
-            tm_fill(c(selected),
-                    title = "Elderly Proportion",
-                    style = "jenks", 
-                    palette = "Blues",
-                    popup.vars=c("Subzone Name"="SUBZONE_N", 
-                                 "Planning Area Name"="PLN_AREA_N", 
-                                 "Elderly Proportion"=selected),
-                    showNA = FALSE) +
-            tm_borders(lwd = 0.1,  alpha = 1) +
-            tm_shape(chas_sf) + tm_dots("red")
-        }
-        
-        else if(input$edasel == "Elderly Proportion" & "Eldercare Centres" %in% input$cb_svc){
-          selected = "elderly_proportion"
-          
-          tm_shape(mpsz_demand) + 
-            tm_fill(c(selected),
-                    title = "Elderly Proportion",
-                    style = "jenks", 
-                    palette = "Blues",
-                    popup.vars=c("Subzone Name"="SUBZONE_N", 
-                                 "Planning Area Name"="PLN_AREA_N", 
-                                 "Elderly Proportion"=selected),
-                    showNA = FALSE) +
-            tm_borders(lwd = 0.1,  alpha = 1) +
-            tm_shape(eldercare_sf) + tm_dots("blue")
-        }
-        
-        else if(input$edasel == "Elderly Proportion" & "Silver infocomm" %in% input$cb_svc){
-          selected = "elderly_proportion"
-          
-          tm_shape(mpsz_demand) + 
-            tm_fill(c(selected),
-                    title = "Elderly Proportion",
-                    style = "jenks", 
-                    palette = "Blues",
-                    popup.vars=c("Subzone Name"="SUBZONE_N", 
-                                 "Planning Area Name"="PLN_AREA_N", 
-                                 "Elderly Proportion"=selected),
-                    showNA = FALSE) +
-            tm_borders(lwd = 0.1,  alpha = 1) +
-            tm_shape(infocomm_sf) + tm_dots("green")
-        }
-
+      if (input$facility == 'Eldercare Services'){
+        supply <- eldercare_sf %>% 
+          mutate(capacity = input$capacity)
+      }
+      else if (input$facility == 'CHAS Clinics'){
+        supply <- chas_sf %>% 
+          mutate(capacity = input$capacity)
+      }
+      else{
+        supply <- infocomm_sf %>% 
+          mutate(capacity = input$capacity)
+      }
+      
+      distmat = as.matrix(CreateDistMatrix(knownpts=demand, unknownpts=supply, longlat=FALSE)/1000)
+      temp <- data.frame(ac(demand$elderly_count,supply$capacity, distmat, d0 = input$distance, power = 2, family = input$accmeasure))
+      colnames(temp) <- 'acc'
+      temp <- tibble::as_tibble(temp)
+      result_sf <- bind_cols(temp_sf, temp)
+      
+      # Generate the Map
+      if (input$facility == 'Eldercare Centres'){
+        tm_shape(eldercare_sf) + 
+          tm_dots('blue') + 
+        tm_shape(result_sf) + 
+          tm_bubbles(col='acc', n=5, style='quantile', size=0.005, border.col='black', border.lwd=1)
+      }
+      else if (input$facility == 'CHAS Clinics'){
+        tm_shape(chas_sf) + 
+          tm_dots('red') + 
+        tm_shape(result_sf) + 
+          tm_bubbles(col='acc', n=5, style='quantile', size=0.005, border.col='black', border.lwd=1)
+      }
+      else{
+        tm_shape(infocomm_sf) + 
+          tm_dots('green') + 
+        tm_shape(result_sf) + 
+          tm_bubbles(col='acc', n=5, style='quantile', size=0.005, border.col='black', border.lwd=1)
+      }
+      
     })
     
-    #values <- reactiveValues()
+    output$cda <- renderPlot({
+      demand <- hdb_sf 
+      temp_sf <- hdb_sf 
+      bindingbox <- st_bbox(mpsz_sf)
+      selected_osm <- read_osm(bindingbox, ext=1.1)
+      
+      if (input$facility == 'Eldercare Services'){
+        supply <- eldercare_sf %>% 
+          mutate(capacity = input$capacity)
+      }
+      else if (input$facility == 'CHAS Clinics'){
+        supply <- chas_sf %>% 
+          mutate(capacity = input$capacity)
+      }
+      else{
+        supply <- infocomm_sf %>% 
+          mutate(capacity = input$capacity)
+      }
+      
+      distmat = as.matrix(CreateDistMatrix(knownpts=demand, unknownpts=supply, longlat=FALSE)/1000)
+      temp <- data.frame(ac(demand$elderly_count,supply$capacity, distmat, d0 = input$distance, power = 2, family = input$accmeasure))
+      colnames(temp) <- 'acc'
+      temp <- tibble::as_tibble(temp)
+      result_sf <- bind_cols(temp_sf, temp)
+      result_sf <- st_join(result_sf, mpsz_sf, join=st_intersects)
+      
+      result_sf$log_acc <- log(result_sf$acc)
+      ggbetweenstats(data=result_sf, 
+                     x=REGION_N, 
+                     y=log_acc, 
+                     pairwise.comparisons=TRUE, 
+                     p.adjust.method='fdr', 
+                     title='Accessibility Values by HDB location & by Region')
+      
+    })
     
+    # Histograms
     output$plotlychas <- renderPlotly({
       if("CHAS Clinics" %in% input$cb_svc){
-        chasplot <- plot_ly(x = mpsz_demand$`Chas_Density`, type = "histogram", fill="blue")
-        chasplot <- chasplot %>% layout(title = 'Dist of CHAS Clinics',
-                              xaxis = list(title = 'Ratio of Eldertly to Chas Clinics',
-                                           zeroline = TRUE,
-                                           range = c(0, 3500)),
-                              yaxis = list(title = 'Count',
-                                           range = c(0,50)))
+        chasplot <- plot_ly(x = mpsz_demand$`Chas_Density`, type = "histogram", fill="red")
+        chasplot <- chasplot %>% layout(title = 'Demand/Supply of CHAS Clinics',
+                                        xaxis = list(title = 'Ratio of Eldertly to CHAS Clinics',
+                                                     zeroline = TRUE,
+                                                     range = c(0, 3500)),
+                                        yaxis = list(title = 'Count',
+                                                     range = c(0,50)))
         chasplot
       }
     })
     
     output$plotlyinfo <- renderPlotly({
       if("Silver infocomm" %in% input$cb_svc){
-        infoplot <- plot_ly(x = mpsz_demand$`Infocomm_Density`, type = "histogram", fill="blue")
-        infoplot <- infoplot %>% layout(title = 'Dist of Infocomm Clinics',
-                                        xaxis = list(title = 'Ratio of Elderly to Infocomm',
+        infoplot <- plot_ly(x = mpsz_demand$`Infocomm_Density`, type = "histogram", fill="green")
+        infoplot <- infoplot %>% layout(title = 'Demand/Supply of Silver Infocomm Junctions',
+                                        xaxis = list(title = 'Ratio of Elderly to Silver Infocomm Junctions',
                                                      zeroline = TRUE,
                                                      range = c(0, 11000)),
                                         yaxis = list(title = 'Count',
@@ -838,222 +578,336 @@ server <- function(input, output) {
     output$plotlyelder <- renderPlotly({
       if("Eldercare Centres" %in% input$cb_svc){
         elderplot <- plot_ly(x = mpsz_demand$`Eldercare_Density`, type = "histogram", fill="blue")
-        elderplot <- elderplot %>% layout(title = 'Dist of Eldercare Facilities',
-                                        xaxis = list(title = 'Ratio of Elderly to Eldercare Facilities',
-                                                     zeroline = TRUE,
-                                                     range = c(0, 8000)),
-                                        yaxis = list(title = 'Count',
-                                                     range = c(0,10)))
+        elderplot <- elderplot %>% layout(title = 'Demand/Supply of Eldercare Services',
+                                          xaxis = list(title = 'Ratio of Elderly to Eldercare Services',
+                                                       zeroline = TRUE,
+                                                       range = c(0, 8000)),
+                                          yaxis = list(title = 'Count',
+                                                       range = c(0,10)))
         elderplot
       }
     })
     
     
-
+    
     output$edaHistChas <- renderPlot({
-        if("CHAS Clinics" %in% input$cb_svc){
-            ggplot(data=mpsz_demand,
-                   aes(x= as.numeric(`Chas_Density`)))+
-                geom_histogram(bins=20, 
-                               color="black", fill="light blue")+ 
-            labs(x='Ratio of Elderly to No. of CHAS Clinics', 
-                 y='Count')
-        }
+      if("CHAS Clinics" %in% input$cb_svc){
+        ggplot(data=mpsz_demand,
+               aes(x= as.numeric(`Chas_Density`)))+
+          geom_histogram(bins=20, 
+                         color="black", fill="light blue")+ 
+          labs(x='Ratio of Elderly to No. of CHAS Clinics', 
+               y='Count')
+      }
     })
     
     
     
     output$edaHistInfo <- renderPlot({
-        if("Silver infocomm" %in% input$cb_svc){
-            ggplot(data=mpsz_demand, 
-                   aes(x= as.numeric(`Infocomm_Density`)))+
-                geom_histogram(bins=20, 
-                               color="black", fill="light blue")+
-            labs(x='Ratio of Elderly to No. of Silver Infocomm Junctions', 
-                 y='Count')
-        }
+      if("Silver infocomm" %in% input$cb_svc){
+        ggplot(data=mpsz_demand, 
+               aes(x= as.numeric(`Infocomm_Density`)))+
+          geom_histogram(bins=20, 
+                         color="black", fill="light blue")+
+          labs(x='Ratio of Elderly to No. of Silver Infocomm Junctions', 
+               y='Count')
+      }
     })
     
     output$edaHistElder <- renderPlot({
-        if("Eldercare Centres" %in% input$cb_svc){
-            ggplot(data=mpsz_demand, 
-                   aes(x= as.numeric(`Eldercare_Density`)))+
-                geom_histogram(bins=20, 
-                               color="black", fill="light blue")+ 
-            labs(x='Ratio of Elderly to No. of Eldercare Centres', 
-                 y='Count')
-        }
+      if("Eldercare Centres" %in% input$cb_svc){
+        ggplot(data=mpsz_demand, 
+               aes(x= as.numeric(`Eldercare_Density`)))+
+          geom_histogram(bins=20, 
+                         color="black", fill="light blue")+ 
+          labs(x='Ratio of Elderly to No. of Eldercare Centres', 
+               y='Count')
+      }
     })
     
-    output$kdeplotchas <- renderTmap({
-        pln_area_selected <- mpsz_sp[mpsz_sp@data$PLN_AREA_N == input$planningarea,]
-        bindingbox <- st_bbox(mpsz_sf %>% filter(PLN_AREA_N == input$planningarea,))
-
-        owin <- as(pln_area_selected, "owin")
-        spatialpoint <- as(pln_area_selected, "SpatialPolygons")
+    
+    # Overview Maps
+    output$kdeplotsg <- renderTmap({
+      bindingbox <- st_bbox(sg)
+      owin <- as(sg, "owin")
+      spatialpoint <- as(sg, "SpatialPolygons")
+      
+      if (input$overviewfacility == 'CHAS Clinics'){
         chas_ppp <- as(chas_spatialpoint, "ppp")
         chas_ppp_jit <- rjitter(chas_ppp, retry=TRUE, nsim=1, drop=TRUE)
-
-        ppp_chas <- chas_ppp_jit[owin]
-
-        selected_osm <- read_osm(bindingbox, ext=1.1)
-        
-        msgtext <- "KDE Map"
-        
-        ppp.km <- rescale(ppp_chas, 1000, "km")
-        
-        kde <- density(ppp.km, sigma=bw.diggle, edge=TRUE, kernel="gaussian")
-        
-        gridded_kde_bw <- as.SpatialGridDataFrame.im(kde)
-        
-        kde_bw_raster <- raster(gridded_kde_bw)
-        
-        projection(kde_bw_raster) <- crs("+init=EPSG:3414 +datum=WGS84 +units=km")
-        
-        # Plot kernel density map on openstreetmap
-        tm_shape(selected_osm)+ 
-            tm_layout(legend.outside = TRUE, title="msg_text")+
-            tm_rgb()+
-            tm_shape(pln_area_selected)+
-            tm_borders(col = "darkblue", lwd = 2, lty="longdash")+
-            tm_shape(kde_bw_raster) + 
-            tm_raster("v", alpha=0.5,  
-                      palette = "YlOrRd")
-        
+        ppp <- chas_ppp_jit[owin]
+      }
+      
+      else if (input$overviewfacility == 'Eldercare Services'){
+        elder_ppp <- as(eldercare_spatialpoint, "ppp")
+        elder_ppp_jit <- rjitter(elder_ppp, retry=TRUE, nsim=1, drop=TRUE)
+        ppp <- elder_ppp_jit[owin]
+      }
+      
+      else{
+        silver_ppp <- as(infocomm_spatialpoint, "ppp")
+        silver_ppp_jit <- rjitter(silver_ppp, retry=TRUE, nsim=1, drop=TRUE)
+        ppp <- silver_ppp_jit[owin]
+      }
+      
+      selected_osm <- read_osm(bindingbox, ext=1.1)
+      msgtext <- "KDE Map"
+      ppp.km <- rescale(ppp, 1000, "km")
+      kde <- density(ppp.km, sigma=bw.diggle, edge=TRUE, kernel="gaussian")
+      gridded_kde_bw <- as.SpatialGridDataFrame.im(kde)
+      kde_bw_raster <- raster(gridded_kde_bw)
+      projection(kde_bw_raster) <- crs("+init=EPSG:3414 +datum=WGS84 +units=km")
+      
+      tm_shape(selected_osm)+ 
+        tm_layout(legend.outside = TRUE, title="msg_text")+
+        tm_rgb()+
+        tm_shape(kde_bw_raster) + 
+        tm_raster("v", alpha=0.5,  
+                  palette = "YlOrRd")
+      
     }) 
     
-      output$kChas <- renderPlot({
-        
-          pln_area_selected <- mpsz_sp[mpsz_sp@data$PLN_AREA_N == input$planningarea,]
-          
-          owin <- as(pln_area_selected, "owin")
-          #spatialpoint <- as(pln_area_selected, "SpatialPolygons")
-          chas_ppp <- as(chas_spatialpoint, "ppp")
-          chas_ppp_jit <- rjitter(chas_ppp, retry=TRUE, nsim=1, drop=TRUE)
-          
-          ppp_chas <- chas_ppp_jit[owin]
-          
-          K_chas = Kest(ppp_chas, correction = "Ripley")
-          K_chas.csr <- envelope(ppp_chas, Kest, nsim = 99, rank = 1, glocal=TRUE)
-          
-          plot(K_chas, . - r ~ r, 
-               xlab="d", ylab="L(d)-r", 
-               main="Chas Clinics")
-        
-      })
     
+    output$quadplotsg <- renderPlot({
+      owin <- as(sg, "owin")
+      spatialpoint <- as(sg, "SpatialPolygons")
+      
+      if (input$overviewfacility == 'CHAS Clinics'){
+        chas_ppp <- as(chas_spatialpoint, "ppp")
+        chas_ppp_jit <- rjitter(chas_ppp, retry=TRUE, nsim=1, drop=TRUE)
+        ppp <- chas_ppp_jit[owin]
+      }
+      
+      else if (input$overviewfacility == 'Eldercare Services'){
+        elder_ppp <- as(eldercare_spatialpoint, "ppp")
+        elder_ppp_jit <- rjitter(elder_ppp, retry=TRUE, nsim=1, drop=TRUE)
+        ppp <- elder_ppp_jit[owin]
+      }
+      
+      else{
+        silver_ppp <- as(infocomm_spatialpoint, "ppp")
+        silver_ppp_jit <- rjitter(silver_ppp, retry=TRUE, nsim=1, drop=TRUE)
+        ppp <- silver_ppp_jit[owin]
+      }
+      
+      msgtext <- "Quadrat Map"
+      ppp.km <- rescale(ppp, 1000, "km")
+      
+      qt <- quadrat.test(ppp.km, nx=20, ny=15)
+      plot(ppp.km)
+      plot(qt, add=TRUE, cex=.1)
+    }) 
+    
+    output$hotspotsg <- renderTmap({
+      
+      mpsz_demand_selected <- mpsz_demand 
+      mpsz_demand_selected_sp <- as_Spatial(mpsz_demand_selected)
+      
+      coords <- coordinates(mpsz_demand_selected_sp)
+      k1 <- knn2nb(knearneigh(coords))
+      k1dists <- unlist(nbdists(k1, coords, longlat=FALSE))
+      maxdist <- ceiling(max(k1dists))
+      dnb <- dnearneigh(coordinates(mpsz_demand_selected_sp), 0, maxdist, longlat = FALSE)
+      dnb_lw <- nb2listw(dnb, style = 'B')
+      fips <- order(mpsz_demand_selected_sp$SUBZONE_N)
+      
+      if (input$overviewfacility == 'Eldercare Services'){
+        gi.fixed <- localG(mpsz_demand_selected_sp$eldercare_count, dnb_lw)
+      }
+      else if (input$overviewfacility == 'CHAS Clinics'){
+        gi.fixed <- localG(mpsz_demand_selected_sp$chas_count, dnb_lw)
+      }
+      else{
+        gi.fixed <- localG(mpsz_demand_selected_sp$infocomm_count, dnb_lw)
+      }
+      
+      
+      result.gi <- cbind(mpsz_demand_selected_sp, as.matrix(gi.fixed))
+      names(result.gi)[15] <- "gstat"
+      
+      tm_shape(result.gi) +
+        tm_fill(col = "gstat", 
+                style = "pretty",
+                palette="-RdBu",
+                title = "local Gi") +
+        tm_borders(alpha = 0.5)
+    })
+    
+    
+    # KDE Maps
+    
+    output$kdeplotchas <- renderTmap({
+      pln_area_selected <- mpsz_sp[mpsz_sp@data$PLN_AREA_N == input$planningarea,]
+      bindingbox <- st_bbox(mpsz_sf %>% filter(PLN_AREA_N == input$planningarea,))
+      
+      owin <- as(pln_area_selected, "owin")
+      spatialpoint <- as(pln_area_selected, "SpatialPolygons")
+      chas_ppp <- as(chas_spatialpoint, "ppp")
+      chas_ppp_jit <- rjitter(chas_ppp, retry=TRUE, nsim=1, drop=TRUE)
+      
+      ppp_chas <- chas_ppp_jit[owin]
+      
+      selected_osm <- read_osm(bindingbox, ext=1.1)
+      
+      msgtext <- "KDE Map"
+      
+      ppp.km <- rescale(ppp_chas, 1000, "km")
+      
+      kde <- density(ppp.km, sigma=bw.diggle, edge=TRUE, kernel="gaussian")
+      
+      gridded_kde_bw <- as.SpatialGridDataFrame.im(kde)
+      
+      kde_bw_raster <- raster(gridded_kde_bw)
+      
+      projection(kde_bw_raster) <- crs("+init=EPSG:3414 +datum=WGS84 +units=km")
+      
+      # Plot kernel density map on openstreetmap
+      tm_shape(selected_osm)+ 
+        tm_layout(legend.outside = TRUE, title="msg_text")+
+        tm_rgb()+
+        tm_shape(pln_area_selected)+
+        tm_borders(col = "darkblue", lwd = 2, lty="longdash")+
+        tm_shape(kde_bw_raster) + 
+        tm_raster("v", alpha=0.5,  
+                  palette = "YlOrRd")
+      
+    }) 
     
     output$kdeploteldercare <- renderTmap({
-        pln_area_selected <- mpsz_sp[mpsz_sp@data$PLN_AREA_N == input$planningarea,]
-        bindingbox <- st_bbox(mpsz_sf %>% filter(PLN_AREA_N == input$planningarea,))
-        
-        owin <- as(pln_area_selected, "owin")
-        spatialpoint <- as(pln_area_selected, "SpatialPolygons")
-        elder_ppp <- as(eldercare_spatialpoint, "ppp")
-        elder_ppp_jit <- rjitter(elder_ppp, retry=TRUE, nsim=1, drop=TRUE)
-        
-        ppp_elder<- elder_ppp_jit[owin]
-        
-        selected_osm <- read_osm(bindingbox, ext=1.1)
-        
-        msgtext <- "KDE Map"
-        
-        ppp.km <- rescale(ppp_elder, 1000, "km")
-        
-        kde <- density(ppp.km, sigma=bw.diggle, edge=TRUE, kernel="gaussian")
-        
-        gridded_kde_bw <- as.SpatialGridDataFrame.im(kde)
-        
-        kde_bw_raster <- raster(gridded_kde_bw)
-        
-        projection(kde_bw_raster) <- crs("+init=EPSG:3414 +datum=WGS84 +units=km")
-        
-        # Plot kernel density map on openstreetmap
-        tm_shape(selected_osm)+ 
-            tm_layout(legend.outside = TRUE, title="msg_text")+
-            tm_rgb()+
-            tm_shape(pln_area_selected)+
-            tm_borders(col = "darkblue", lwd = 2, lty="longdash")+
-            tm_shape(kde_bw_raster) + 
-            tm_raster("v", alpha=0.5,  
-                      palette = "YlOrRd")
-        
+      pln_area_selected <- mpsz_sp[mpsz_sp@data$PLN_AREA_N == input$planningarea,]
+      bindingbox <- st_bbox(mpsz_sf %>% filter(PLN_AREA_N == input$planningarea,))
+      
+      owin <- as(pln_area_selected, "owin")
+      spatialpoint <- as(pln_area_selected, "SpatialPolygons")
+      elder_ppp <- as(eldercare_spatialpoint, "ppp")
+      elder_ppp_jit <- rjitter(elder_ppp, retry=TRUE, nsim=1, drop=TRUE)
+      
+      ppp_elder<- elder_ppp_jit[owin]
+      
+      selected_osm <- read_osm(bindingbox, ext=1.1)
+      
+      msgtext <- "KDE Map"
+      
+      ppp.km <- rescale(ppp_elder, 1000, "km")
+      
+      kde <- density(ppp.km, sigma=bw.diggle, edge=TRUE, kernel="gaussian")
+      
+      gridded_kde_bw <- as.SpatialGridDataFrame.im(kde)
+      
+      kde_bw_raster <- raster(gridded_kde_bw)
+      
+      projection(kde_bw_raster) <- crs("+init=EPSG:3414 +datum=WGS84 +units=km")
+      
+      # Plot kernel density map on openstreetmap
+      tm_shape(selected_osm)+ 
+        tm_layout(legend.outside = TRUE, title="msg_text")+
+        tm_rgb()+
+        tm_shape(pln_area_selected)+
+        tm_borders(col = "darkblue", lwd = 2, lty="longdash")+
+        tm_shape(kde_bw_raster) + 
+        tm_raster("v", alpha=0.5,  
+                  palette = "YlOrRd")
+      
     }) 
     
-    output$kEldercare <- renderPlot({
+    
+    output$kdeplotsilverinfo <- renderTmap({
+      pln_area_selected <- mpsz_sp[mpsz_sp@data$PLN_AREA_N == input$planningarea,]
+      bindingbox <- st_bbox(mpsz_sf %>% filter(PLN_AREA_N == input$planningarea,))
       
-        pln_area_selected <- mpsz_sp[mpsz_sp@data$PLN_AREA_N == input$planningarea,]
-        
-        owin <- as(pln_area_selected, "owin")
-        #spatialpoint <- as(pln_area_selected, "SpatialPolygons")
-        elder_ppp <- as(eldercare_spatialpoint, "ppp")
-        elder_ppp_jit <- rjitter(elder_ppp, retry=TRUE, nsim=1, drop=TRUE)
-        
-        ppp_elder<- elder_ppp_jit[owin]
-        
-        K_elder = Kest(ppp_elder, correction = "Ripley")
-        K_elder.csr <- envelope(ppp_elder, Kest, nsim = 99, rank = 1, glocal=TRUE)
-        
-        plot(K_elder, . - r ~ r, 
-             xlab="d", ylab="L(d)-r", 
-             main="Eldercare Facilities")
+      owin <- as(pln_area_selected, "owin")
+      spatialpoint <- as(pln_area_selected, "SpatialPolygons")
+      silver_ppp <- as(infocomm_spatialpoint, "ppp")
+      silver_ppp_jit <- rjitter(silver_ppp, retry=TRUE, nsim=1, drop=TRUE)
+      
+      ppp_silver <- silver_ppp_jit[owin]
+      
+      selected_osm <- read_osm(bindingbox, ext=1.1)
+      
+      msgtext <- "KDE Map"
+      
+      ppp.km <- rescale(ppp_silver, 1000, "km")
+      
+      kde <- density(ppp.km, sigma=bw.diggle, edge=TRUE, kernel="gaussian")
+      
+      gridded_kde_bw <- as.SpatialGridDataFrame.im(kde)
+      
+      kde_bw_raster <- raster(gridded_kde_bw)
+      
+      projection(kde_bw_raster) <- crs("+init=EPSG:3414 +datum=WGS84 +units=km")
+      
+      # Plot kernel density map on openstreetmap
+      tm_shape(selected_osm)+ 
+        tm_layout(legend.outside = TRUE, title="msg_text")+
+        tm_rgb()+
+        tm_shape(pln_area_selected)+
+        tm_borders(col = "darkblue", lwd = 2, lty="longdash")+
+        tm_shape(kde_bw_raster) + 
+        tm_raster("v", alpha=0.5,  
+                  palette = "YlOrRd")
+      
+    }) 
+    
+    
+    # K-Cross Analysis
+    output$kChas <- renderPlot({
+      
+      pln_area_selected <- mpsz_sp[mpsz_sp@data$PLN_AREA_N == input$planningarea,]
+      
+      owin <- as(pln_area_selected, "owin")
+      #spatialpoint <- as(pln_area_selected, "SpatialPolygons")
+      chas_ppp <- as(chas_spatialpoint, "ppp")
+      chas_ppp_jit <- rjitter(chas_ppp, retry=TRUE, nsim=1, drop=TRUE)
+      
+      ppp_chas <- chas_ppp_jit[owin]
+      
+      K_chas = Kest(ppp_chas, correction = "Ripley")
+      K_chas.csr <- envelope(ppp_chas, Kest, nsim = 99, rank = 1, glocal=TRUE)
+      
+      plot(K_chas, . - r ~ r, 
+           xlab="d", ylab="L(d)-r", 
+           main="Chas Clinics")
       
     })
     
-    output$kdeplotsilverinfo <- renderTmap({
-        pln_area_selected <- mpsz_sp[mpsz_sp@data$PLN_AREA_N == input$planningarea,]
-        bindingbox <- st_bbox(mpsz_sf %>% filter(PLN_AREA_N == input$planningarea,))
-        
-        owin <- as(pln_area_selected, "owin")
-        spatialpoint <- as(pln_area_selected, "SpatialPolygons")
-        silver_ppp <- as(infocomm_spatialpoint, "ppp")
-        silver_ppp_jit <- rjitter(silver_ppp, retry=TRUE, nsim=1, drop=TRUE)
-        
-        ppp_silver <- silver_ppp_jit[owin]
-        
-        selected_osm <- read_osm(bindingbox, ext=1.1)
-        
-        msgtext <- "KDE Map"
-        
-        ppp.km <- rescale(ppp_silver, 1000, "km")
-        
-        kde <- density(ppp.km, sigma=bw.diggle, edge=TRUE, kernel="gaussian")
-        
-        gridded_kde_bw <- as.SpatialGridDataFrame.im(kde)
-        
-        kde_bw_raster <- raster(gridded_kde_bw)
-        
-        projection(kde_bw_raster) <- crs("+init=EPSG:3414 +datum=WGS84 +units=km")
-        
-        # Plot kernel density map on openstreetmap
-        tm_shape(selected_osm)+ 
-            tm_layout(legend.outside = TRUE, title="msg_text")+
-            tm_rgb()+
-            tm_shape(pln_area_selected)+
-            tm_borders(col = "darkblue", lwd = 2, lty="longdash")+
-            tm_shape(kde_bw_raster) + 
-            tm_raster("v", alpha=0.5,  
-                      palette = "YlOrRd")
-        
-    }) 
     
     output$kSilverinfo <- renderPlot({
       
-        pln_area_selected <- mpsz_sp[mpsz_sp@data$PLN_AREA_N == input$planningarea,]
-        
-        owin <- as(pln_area_selected, "owin")
-        #spatialpoint <- as(pln_area_selected, "SpatialPolygons")
-        silver_ppp <- as(infocomm_spatialpoint, "ppp")
-        silver_ppp_jit <- rjitter(silver_ppp, retry=TRUE, nsim=1, drop=TRUE)
-        
-        ppp_silver <- silver_ppp_jit[owin]
-        
-        K_info = Kest(ppp_silver, correction = "Ripley")
-        K_info.csr <- envelope(ppp_silver, Kest, nsim = 99, rank = 1, glocal=TRUE)
-        
-        plot(K_info, . - r ~ r, 
-             xlab="d", ylab="L(d)-r", 
-             main="Silver infocomm Centres")
+      pln_area_selected <- mpsz_sp[mpsz_sp@data$PLN_AREA_N == input$planningarea,]
+      
+      owin <- as(pln_area_selected, "owin")
+      #spatialpoint <- as(pln_area_selected, "SpatialPolygons")
+      silver_ppp <- as(infocomm_spatialpoint, "ppp")
+      silver_ppp_jit <- rjitter(silver_ppp, retry=TRUE, nsim=1, drop=TRUE)
+      
+      ppp_silver <- silver_ppp_jit[owin]
+      
+      K_info = Kest(ppp_silver, correction = "Ripley")
+      K_info.csr <- envelope(ppp_silver, Kest, nsim = 99, rank = 1, glocal=TRUE)
+      
+      plot(K_info, . - r ~ r, 
+           xlab="d", ylab="L(d)-r", 
+           main="Silver infocomm Centres")
+      
+    })
+    
+    output$kEldercare <- renderPlot({
+      
+      pln_area_selected <- mpsz_sp[mpsz_sp@data$PLN_AREA_N == input$planningarea,]
+      
+      owin <- as(pln_area_selected, "owin")
+      #spatialpoint <- as(pln_area_selected, "SpatialPolygons")
+      elder_ppp <- as(eldercare_spatialpoint, "ppp")
+      elder_ppp_jit <- rjitter(elder_ppp, retry=TRUE, nsim=1, drop=TRUE)
+      
+      ppp_elder<- elder_ppp_jit[owin]
+      
+      K_elder = Kest(ppp_elder, correction = "Ripley")
+      K_elder.csr <- envelope(ppp_elder, Kest, nsim = 99, rank = 1, glocal=TRUE)
+      
+      plot(K_elder, . - r ~ r, 
+           xlab="d", ylab="L(d)-r", 
+           main="Eldercare Facilities")
       
     })
     
@@ -1104,6 +958,7 @@ server <- function(input, output) {
       
     })
     
+    # Hotspot and Coldspot Analysis
     output$hotspotchas <- renderTmap({
       #selecting planning area via user input
       mpsz_demand_selected <- mpsz_demand %>%
@@ -1213,6 +1068,483 @@ server <- function(input, output) {
                 title = "local Gi") +
         tm_borders(alpha = 0.5)
     })
+    
+    # Quadrat Analysis Plots
+    output$quadplotchas <- renderPlot({
+      pln_area_selected <- mpsz_sp[mpsz_sp@data$PLN_AREA_N == input$planningarea,]
+      owin <- as(pln_area_selected, "owin")
+      spatialpoint <- as(pln_area_selected, "SpatialPolygons")
+      chas_ppp <- as(chas_spatialpoint, "ppp")
+      chas_ppp_jit <- rjitter(chas_ppp, retry=TRUE, nsim=1, drop=TRUE)
+      ppp_chas <- chas_ppp_jit[owin]
+      msgtext <- "Quadrat Map"
+      ppp.km <- rescale(ppp_chas, 1000, "km")
+      
+      qt <- quadrat.test(ppp.km, nx=20, ny=15)
+      plot(ppp.km)
+      plot(qt, add=TRUE, cex=.1)
+      
+    }) 
+    
+    output$quadplotsilverinfo <- renderPlot({
+      pln_area_selected <- mpsz_sp[mpsz_sp@data$PLN_AREA_N == input$planningarea,]
+      owin <- as(pln_area_selected, "owin")
+      spatialpoint <- as(pln_area_selected, "SpatialPolygons")
+      silver_ppp <- as(infocomm_spatialpoint, "ppp")
+      silver_ppp_jit <- rjitter(silver_ppp, retry=TRUE, nsim=1, drop=TRUE)
+      ppp_silver <- silver_ppp_jit[owin]
+      msgtext <- "Quadrat Map"
+      ppp.km <- rescale(ppp_silver, 1000, "km")
+      
+      qt <- quadrat.test(ppp.km, nx=20, ny=15)
+      plot(ppp.km)
+      plot(qt, add=TRUE, cex=.1)
+      
+    }) 
+    
+    output$quadploteldercare <- renderPlot({
+      pln_area_selected <- mpsz_sp[mpsz_sp@data$PLN_AREA_N == input$planningarea,]
+      owin <- as(pln_area_selected, "owin")
+      spatialpoint <- as(pln_area_selected, "SpatialPolygons")
+      elder_ppp <- as(eldercare_spatialpoint, "ppp")
+      elder_ppp_jit <- rjitter(elder_ppp, retry=TRUE, nsim=1, drop=TRUE)
+      ppp_elder<- elder_ppp_jit[owin]
+      msgtext <- "KDE Map"
+      ppp.km <- rescale(ppp_elder, 1000, "km")
+      
+      qt <- quadrat.test(ppp.km, nx=20, ny=15)
+      plot(ppp.km)
+      plot(qt, add=TRUE, cex=.1)
+     
+    }) 
+    
+    #Spatial Point Pattern Analysis
+    output$sdplot <- renderTmap({
+        if(input$edasel == "Elderly Density" & is.null(input$cb_svc)){
+            selected = "Elderly_Density"
+            
+            tm_shape(mpsz_demand) + 
+                tm_fill(c(selected),
+                        title = "Elderly Density",
+                        style = "jenks", 
+                        palette = "Blues",
+                        popup.vars=c("Subzone Name"="SUBZONE_N", 
+                                     "Planning Area Name"="PLN_AREA_N", 
+                                     "Elderly Density"=selected),
+                        showNA = FALSE) +
+                tm_borders(lwd = 0.1,  alpha = 1) + 
+              tm_shape(hdb_sf) + tm_dots(size = 0.004)
+        }
+        
+        else if(input$edasel == "Elderly Density" & " CHAS Clinics" %in% input$cb_svc & "Eldercare Centres" %in% input$cb_svc & "Silver infocomm" %in% input$cb_svc){
+            selected = "Elderly_Density"
+            
+            tm_shape(mpsz_demand) + 
+                tm_fill(c(selected),
+                        title = "Elderly Density",
+                        style = "jenks", 
+                        palette = "Blues",
+                        popup.vars=c("Subzone Name"="SUBZONE_N", 
+                                     "Planning Area Name"="PLN_AREA_N", 
+                                     "Elderly Density"=selected),
+                        showNA = FALSE) +
+                tm_borders(lwd = 0.1,  alpha = 1) +
+                tm_shape(chas_sf) + tm_dots("red") +
+                tm_shape(eldercare_sf) + tm_dots("blue")+
+                tm_shape(infocomm_sf) + tm_dots("green") + 
+              tm_shape(hdb_sf) + tm_dots(size = 0.004)
+        }
+        
+        else if(input$edasel == "Elderly Density" & "CHAS Clinics" %in% input$cb_svc & "Eldercare Centres" %in% input$cb_svc){
+            selected = "Elderly_Density"
+            
+            tm_shape(mpsz_demand) + 
+                tm_fill(c(selected),
+                        title = "Elderly Density",
+                        style = "jenks", 
+                        palette = "Blues",
+                        popup.vars=c("Subzone Name"="SUBZONE_N", 
+                                     "Planning Area Name"="PLN_AREA_N", 
+                                     "Elderly Density"=selected),
+                        showNA = FALSE) +
+                tm_borders(lwd = 0.1,  alpha = 1) +
+                tm_shape(chas_sf) + tm_dots("red") +
+                tm_shape(eldercare_sf) + tm_dots("blue")+ 
+              tm_shape(hdb_sf) + tm_dots(size = 0.004)
+        }
+        
+        else if(input$edasel == "Elderly Density" & "CHAS Clinics" %in% input$cb_svc & "Silver infocomm" %in% input$cb_svc){
+            selected = "Elderly_Density"
+            
+            tm_shape(mpsz_demand) + 
+                tm_fill(c(selected),
+                        title = "Elderly Density",
+                        style = "jenks", 
+                        palette = "Blues",
+                        popup.vars=c("Subzone Name"="SUBZONE_N", 
+                                     "Planning Area Name"="PLN_AREA_N", 
+                                     "Elderly Density"=selected),
+                        showNA = FALSE) +
+                tm_borders(lwd = 0.1,  alpha = 1) +
+                tm_shape(chas_sf) + tm_dots("red") +
+                tm_shape(infocomm_sf) + tm_dots("green") + 
+              tm_shape(hdb_sf) + tm_dots(size = 0.004)
+        }
+        
+        else if(input$edasel == "Elderly Density" & "Eldercare Centres" %in% input$cb_svc & "Silver infocomm" %in% input$cb_svc){
+            selected = "Elderly_Density"
+            
+            tm_shape(mpsz_demand) + 
+                tm_fill(c(selected),
+                        title = "Elderly Density",
+                        style = "jenks", 
+                        palette = "Blues",
+                        popup.vars=c("Subzone Name"="SUBZONE_N", 
+                                     "Planning Area Name"="PLN_AREA_N", 
+                                     "Elderly Density"=selected),
+                        showNA = FALSE) +
+                tm_borders(lwd = 0.1,  alpha = 1) +
+                tm_shape(eldercare_sf) + tm_dots("blue")+
+                tm_shape(infocomm_sf) + tm_dots("green") + 
+              tm_shape(hdb_sf) + tm_dots(size = 0.004)
+        }
+        
+        
+        else if(input$edasel == "Elderly Density" & "CHAS Clinics" %in% input$cb_svc){
+            selected = "Elderly_Density"
+            
+            tm_shape(mpsz_demand) + 
+                tm_fill(c(selected),
+                        title = "Elderly Density",
+                        style = "jenks", 
+                        palette = "Blues",
+                        popup.vars=c("Subzone Name"="SUBZONE_N", 
+                                     "Planning Area Name"="PLN_AREA_N", 
+                                     "Elderly Density"=selected),
+                        showNA = FALSE) +
+                tm_borders(lwd = 0.1,  alpha = 1) +
+                tm_shape(chas_sf) + tm_dots("red")+ 
+              tm_shape(hdb_sf) + tm_dots(size = 0.004)
+        }
+        
+        else if(input$edasel == "Elderly Density" & "Eldercare Centres" %in% input$cb_svc){
+            selected = "Elderly_Density"
+            
+            tm_shape(mpsz_demand) + 
+                tm_fill(c(selected),
+                        title = "Elderly Density",
+                        style = "jenks", 
+                        palette = "Blues",
+                        popup.vars=c("Subzone Name"="SUBZONE_N", 
+                                     "Planning Area Name"="PLN_AREA_N", 
+                                     "Elderly Density"=selected),
+                        showNA = FALSE) +
+                tm_borders(lwd = 0.1,  alpha = 1) +
+                tm_shape(eldercare_sf) + tm_dots("blue")+ 
+              tm_shape(hdb_sf) + tm_dots(size = 0.004)
+        }
+        
+        else if(input$edasel == "Elderly Density" & "Silver infocomm" %in% input$cb_svc){
+            selected = "Elderly_Density"
+            
+            tm_shape(mpsz_demand) + 
+                tm_fill(c(selected),
+                        title = "Elderly Density",
+                        style = "jenks", 
+                        palette = "Blues",
+                        popup.vars=c("Subzone Name"="SUBZONE_N", 
+                                     "Planning Area Name"="PLN_AREA_N", 
+                                     "Elderly Density"=selected),
+                        showNA = FALSE) +
+                tm_borders(lwd = 0.1,  alpha = 1) +
+                tm_shape(infocomm_sf) + tm_dots("green")+ 
+              tm_shape(hdb_sf) + tm_dots(size = 0.004)
+        }
+        
+        else if(input$edasel == "Elderly Count" & is.null(input$cb_svc)){
+            selected = "elderly_count"
+            
+            tm_shape(mpsz_demand) + 
+                tm_fill(c(selected),
+                        title = "Elderly Population",
+                        breaks = c(0, 2500 ,5000, 7500, 10000, 12500, 15000, 17500, 20000),
+                        palette = "Blues",
+                        popup.vars=c("Subzone Name"="SUBZONE_N", 
+                                     "Planning Area Name"="PLN_AREA_N", 
+                                     "Elderly Population"=selected),
+                        showNA = FALSE) +
+                tm_borders(lwd = 0.1,  alpha = 1)+ 
+              tm_shape(hdb_sf) + tm_dots(size = 0.004)
+        }
+        
+        else if(input$edasel == "Elderly Count" & "CHAS Clinics" %in% input$cb_svc & "Eldercare Centres" %in% input$cb_svc & "Silver infocomm" %in% input$cb_svc){
+            selected = "elderly_count"
+            
+            tm_shape(mpsz_demand) + 
+                tm_fill(c(selected),
+                        title = "Elderly Population",
+                        breaks = c(0, 2500 ,5000, 7500, 10000, 12500, 15000, 17500, 20000),
+                        palette = "Blues",
+                        popup.vars=c("Subzone Name"="SUBZONE_N", 
+                                     "Planning Area Name"="PLN_AREA_N", 
+                                     "Elderly Population"=selected),
+                        showNA = FALSE) +
+                tm_borders(lwd = 0.1,  alpha = 1) +
+                tm_shape(chas_sf) + tm_dots("red") +
+                tm_shape(eldercare_sf) + tm_dots("blue")+
+                tm_shape(infocomm_sf) + tm_dots("green") + 
+              tm_shape(hdb_sf) + tm_dots(size = 0.004)
+        }
+        
+        else if(input$edasel == "Elderly Count" & "CHAS Clinics" %in% input$cb_svc & "Eldercare Centres" %in% input$cb_svc){
+            selected = "elderly_count"
+            
+            tm_shape(mpsz_demand) + 
+                tm_fill(c(selected),
+                        title = "Elderly Population",
+                        breaks = c(0, 2500 ,5000, 7500, 10000, 12500, 15000, 17500, 20000),
+                        palette = "Blues",
+                        popup.vars=c("Subzone Name"="SUBZONE_N", 
+                                     "Planning Area Name"="PLN_AREA_N", 
+                                     "Elderly Population"=selected),
+                        showNA = FALSE) +
+                tm_borders(lwd = 0.1,  alpha = 1) +
+                tm_shape(chas_sf) + tm_dots("red") +
+                tm_shape(eldercare_sf) + tm_dots("blue")+ 
+              tm_shape(hdb_sf) + tm_dots(size = 0.004)
+        }
+        
+        else if(input$edasel == "Elderly Count" & "CHAS Clinics" %in% input$cb_svc & "Silver infocomm" %in% input$cb_svc){
+            selected = "elderly_count"
+            
+            tm_shape(mpsz_demand) + 
+                tm_fill(c(selected),
+                        title = "Elderly Population",
+                        breaks = c(0, 2500 ,5000, 7500, 10000, 12500, 15000, 17500, 20000),
+                        palette = "Blues",
+                        popup.vars=c("Subzone Name"="SUBZONE_N", 
+                                     "Planning Area Name"="PLN_AREA_N", 
+                                     "Elderly Population"=selected),
+                        showNA = FALSE) +
+                tm_borders(lwd = 0.1,  alpha = 1) +
+                tm_shape(chas_sf) + tm_dots("red") +
+                tm_shape(infocomm_sf) + tm_dots("green")+ 
+              tm_shape(hdb_sf) + tm_dots(size = 0.004)
+        }
+        
+        else if(input$edasel == "Elderly Count" & "Eldercare Centres" %in% input$cb_svc & "Silver infocomm" %in% input$cb_svc){
+            selected = "elderly_count"
+            
+            tm_shape(mpsz_demand) + 
+                tm_fill(c(selected),
+                        title = "Elderly Population",
+                        breaks = c(0, 2500 ,5000, 7500, 10000, 12500, 15000, 17500, 20000),
+                        palette = "Blues",
+                        popup.vars=c("Subzone Name"="SUBZONE_N", 
+                                     "Planning Area Name"="PLN_AREA_N", 
+                                     "Elderly Population"=selected),
+                        showNA = FALSE) +
+                tm_borders(lwd = 0.1,  alpha = 1) +
+                tm_shape(eldercare_sf) + tm_dots("blue")+
+                tm_shape(infocomm_sf) + tm_dots("green") + 
+              tm_shape(hdb_sf) + tm_dots(size = 0.004)
+        }
+        
+        else if(input$edasel == "Elderly Count" & "CHAS Clinics" %in% input$cb_svc){
+            selected = "elderly_count"
+            
+            tm_shape(mpsz_demand) + 
+                tm_fill(c(selected),
+                        title = "Elderly Population",
+                        breaks = c(0, 2500 ,5000, 7500, 10000, 12500, 15000, 17500, 20000),
+                        palette = "Blues",
+                        popup.vars=c("Subzone Name"="SUBZONE_N", 
+                                     "Planning Area Name"="PLN_AREA_N", 
+                                     "Elderly Population"=selected),
+                        showNA = FALSE) +
+                tm_borders(lwd = 0.1,  alpha = 1) +
+                tm_shape(chas_sf) + tm_dots("red")+ 
+              tm_shape(hdb_sf) + tm_dots(size = 0.004)
+        }
+        
+        else if(input$edasel == "Elderly Count" & "Eldercare Centres" %in% input$cb_svc){
+            selected = "elderly_count"
+            
+            tm_shape(mpsz_demand) + 
+                tm_fill(c(selected),
+                        title = "Elderly Population",
+                        breaks = c(0, 2500 ,5000, 7500, 10000, 12500, 15000, 17500, 20000),
+                        palette = "Blues",
+                        popup.vars=c("Subzone Name"="SUBZONE_N", 
+                                     "Planning Area Name"="PLN_AREA_N", 
+                                     "Elderly Population"=selected),
+                        showNA = FALSE) +
+                tm_borders(lwd = 0.1,  alpha = 1) +
+                tm_shape(eldercare_sf) + tm_dots("blue")+ 
+              tm_shape(hdb_sf) + tm_dots(size = 0.004)
+        }
+        
+        else if(input$edasel == "Elderly Count" & "Silver infocomm" %in% input$cb_svc){
+            selected = "elderly_count"
+            
+            tm_shape(mpsz_demand) + 
+                tm_fill(c(selected),
+                        title = "Elderly Population",
+                        breaks = c(0, 2500 ,5000, 7500, 10000, 12500, 15000, 17500, 20000),
+                        palette = "Blues",
+                        popup.vars=c("Subzone Name"="SUBZONE_N", 
+                                     "Planning Area Name"="PLN_AREA_N", 
+                                     "Elderly Population"=selected),
+                        showNA = FALSE) +
+                tm_borders(lwd = 0.1,  alpha = 1) +
+                tm_shape(infocomm_sf) + tm_dots("green") + 
+              tm_shape(hdb_sf) + tm_dots(size = 0.004)
+        }
+      
+        else if(input$edasel == "Elderly Proportion" & is.null(input$cb_svc)){
+          selected = "elderly_proportion"
+          
+          tm_shape(mpsz_demand) + 
+            tm_fill(c(selected),
+                    title = "Elderly Proportion",
+                    style = "jenks", 
+                    palette = "Blues",
+                    popup.vars=c("Subzone Name"="SUBZONE_N", 
+                                 "Planning Area Name"="PLN_AREA_N", 
+                                 "Elderly Proportion"=selected),
+                    showNA = FALSE) +
+            tm_borders(lwd = 0.1,  alpha = 1)+ 
+            tm_shape(hdb_sf) + tm_dots(size = 0.004)
+        }
+        
+        else if(input$edasel == "Elderly Proportion" & "CHAS Clinics" %in% input$cb_svc & "Eldercare Centres" %in% input$cb_svc & "Silver infocomm" %in% input$cb_svc){
+          selected = "elderly_proportion"
+          
+          tm_shape(mpsz_demand) + 
+            tm_fill(c(selected),
+                    title = "Elderly Proportion",
+                    style = "jenks", 
+                    palette = "Blues",
+                    popup.vars=c("Subzone Name"="SUBZONE_N", 
+                                 "Planning Area Name"="PLN_AREA_N", 
+                                 "Elderly Proportion"=selected),
+                    showNA = FALSE) +
+            tm_borders(lwd = 0.1,  alpha = 1) +
+            tm_shape(chas_sf) + tm_dots("red") +
+            tm_shape(eldercare_sf) + tm_dots("blue")+
+            tm_shape(infocomm_sf) + tm_dots("green") + 
+            tm_shape(hdb_sf) + tm_dots(size = 0.004)
+        }
+        
+        else if(input$edasel == "Elderly Proportion" & "CHAS Clinics" %in% input$cb_svc & "Eldercare Centres" %in% input$cb_svc){
+          selected = "elderly_proportion"
+          
+          tm_shape(mpsz_demand) + 
+            tm_fill(c(selected),
+                    title = "Elderly Proportion",
+                    style = "jenks", 
+                    palette = "Blues",
+                    popup.vars=c("Subzone Name"="SUBZONE_N", 
+                                 "Planning Area Name"="PLN_AREA_N", 
+                                 "Elderly Proportion"=selected),
+                    showNA = FALSE) +
+            tm_borders(lwd = 0.1,  alpha = 1) +
+            tm_shape(chas_sf) + tm_dots("red") +
+            tm_shape(eldercare_sf) + tm_dots("blue")+ 
+            tm_shape(hdb_sf) + tm_dots(size = 0.004)
+        }
+        
+        else if(input$edasel == "Elderly Proportion" & "CHAS Clinics" %in% input$cb_svc & "Silver infocomm" %in% input$cb_svc){
+          selected = "elderly_proportion"
+          
+          tm_shape(mpsz_demand) + 
+            tm_fill(c(selected),
+                    title = "Elderly Proportion",
+                    style = "jenks", 
+                    palette = "Blues",
+                    popup.vars=c("Subzone Name"="SUBZONE_N", 
+                                 "Planning Area Name"="PLN_AREA_N", 
+                                 "Elderly Proportion"=selected),
+                    showNA = FALSE) +
+            tm_borders(lwd = 0.1,  alpha = 1) +
+            tm_shape(chas_sf) + tm_dots("red") +
+            tm_shape(infocomm_sf) + tm_dots("green") + 
+            tm_shape(hdb_sf) + tm_dots(size = 0.004)
+        }
+        
+        else if(input$edasel == "Elderly Proportion" & "Eldercare Centres" %in% input$cb_svc & "Silver infocomm" %in% input$cb_svc){
+          selected = "elderly_proportion"
+          
+          tm_shape(mpsz_demand) + 
+            tm_fill(c(selected),
+                    title = "Elderly Proportion",
+                    style = "jenks", 
+                    palette = "Blues",
+                    popup.vars=c("Subzone Name"="SUBZONE_N", 
+                                 "Planning Area Name"="PLN_AREA_N", 
+                                 "Elderly Proportion"=selected),
+                    showNA = FALSE) +
+            tm_borders(lwd = 0.1,  alpha = 1) +
+            tm_shape(eldercare_sf) + tm_dots("blue")+
+            tm_shape(infocomm_sf) + tm_dots("green") + 
+            tm_shape(hdb_sf) + tm_dots(size = 0.004)
+        }
+        
+        
+        else if(input$edasel == "Elderly Proportion" & "CHAS Clinics" %in% input$cb_svc){
+          selected = "elderly_proportion"
+          
+          tm_shape(mpsz_demand) + 
+            tm_fill(c(selected),
+                    title = "Elderly Proportion",
+                    style = "jenks", 
+                    palette = "Blues",
+                    popup.vars=c("Subzone Name"="SUBZONE_N", 
+                                 "Planning Area Name"="PLN_AREA_N", 
+                                 "Elderly Proportion"=selected),
+                    showNA = FALSE) +
+            tm_borders(lwd = 0.1,  alpha = 1) +
+            tm_shape(chas_sf) + tm_dots("red")+ 
+            tm_shape(hdb_sf) + tm_dots(size = 0.004)
+        }
+        
+        else if(input$edasel == "Elderly Proportion" & "Eldercare Centres" %in% input$cb_svc){
+          selected = "elderly_proportion"
+          
+          tm_shape(mpsz_demand) + 
+            tm_fill(c(selected),
+                    title = "Elderly Proportion",
+                    style = "jenks", 
+                    palette = "Blues",
+                    popup.vars=c("Subzone Name"="SUBZONE_N", 
+                                 "Planning Area Name"="PLN_AREA_N", 
+                                 "Elderly Proportion"=selected),
+                    showNA = FALSE) +
+            tm_borders(lwd = 0.1,  alpha = 1) +
+            tm_shape(eldercare_sf) + tm_dots("blue")+ 
+            tm_shape(hdb_sf) + tm_dots(size = 0.004)
+        }
+        
+        else if(input$edasel == "Elderly Proportion" & "Silver infocomm" %in% input$cb_svc){
+          selected = "elderly_proportion"
+          
+          tm_shape(mpsz_demand) + 
+            tm_fill(c(selected),
+                    title = "Elderly Proportion",
+                    style = "jenks", 
+                    palette = "Blues",
+                    popup.vars=c("Subzone Name"="SUBZONE_N", 
+                                 "Planning Area Name"="PLN_AREA_N", 
+                                 "Elderly Proportion"=selected),
+                    showNA = FALSE) +
+            tm_borders(lwd = 0.1,  alpha = 1) +
+            tm_shape(infocomm_sf) + tm_dots("green")+ 
+            tm_shape(hdb_sf) + tm_dots(size = 0.004)
+        }
+
+    })
+    
+    
 }
 
     

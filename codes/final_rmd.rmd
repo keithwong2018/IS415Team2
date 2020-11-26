@@ -1,0 +1,408 @@
+---
+title: "final_rmd"
+author: "Veronica Lee Xuan Hui"
+date: "11/25/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r result='hide', message=FALSE, warning=FALSE}
+packages = c('rgdal', 'sf', 'tmap', 'tidyverse', 'sp', 'rgeos','maptools', 'raster', 'spatstat', 'tmaptools', 'spdep', 'OpenStreetMap', 'ggpubr', 'SpatialPosition', 'SpatialAcc', 'dplyr', 'shinycssloaders','plotly', 'shinythemes')
+for (p in packages){
+    if (!require(p, character.only = T)){
+        install.packages(p)
+    }
+    library(p, character.only = T)
+}
+
+
+# Population Data
+# columns = planning_area, subzone, elderly_count, total_count
+popdata <- read_csv('data/planning-area-subzone-age-group-sex-and-type-of-dwelling-june-2011-2019.csv')
+popdata2019 <- popdata %>%
+  filter(year == 2019) %>%
+  # filter(age_group == "65_to_69" | age_group == "70_to_74" | age_group == '75_to_79' | age_group == '80_to_84' | age_group == '85_to_89' | age_group == '90_and_over') %>%
+  group_by(planning_area, subzone, age_group) %>%
+  summarise(count = sum(resident_count)) %>%
+  ungroup() %>%
+  spread(age_group, count) %>%
+  mutate(elderly_count = `65_to_69` + `70_to_74` + `75_to_79` + `80_to_84` + `85_to_89` + `90_and_over`) %>%
+  mutate(total_count = rowSums(.[3:21])) %>%
+  dplyr::select(planning_area, subzone, elderly_count, total_count)
+popdata2019 <- mutate_at(popdata2019, .vars = c("subzone", "planning_area"), .funs=toupper)
+
+# Eldercare Data
+eldercare_sf <- st_read(dsn='data', layer='ELDERCARE')
+eldercare_sf <- eldercare_sf %>%
+    mutate(label = "Eldercare centres") 
+eldercare_sf <- st_transform(eldercare_sf, 3414)
+st_crs(eldercare_sf)
+eldercare_sp <- as_Spatial(eldercare_sf)
+eldercare_spatialpoint <- as(eldercare_sp, "SpatialPoints")
+
+# Silver Infocomm Data
+infocomm_sf <- st_read(dsn='data', layer='SILVERINFOCOMM')
+infocomm_sf <- infocomm_sf %>%
+    mutate(label = "Silver Infocomm Junc")
+infocomm_sf <- st_transform(infocomm_sf, 3414)
+st_crs(infocomm_sf)
+infocomm_sp <- as_Spatial(infocomm_sf)
+infocomm_spatialpoint <- as(infocomm_sp, "SpatialPoints")
+
+# Chas Clinic Data
+chas_sf <- st_read(dsn='data/chas-clinics-kml.kml')
+chas_sf <- chas_sf %>%
+    mutate(label = "Chas Clinics") %>%
+    mutate(capacity = 1)
+chas_sf <- st_transform(chas_sf, 3414)
+st_crs(chas_sf)
+chas_sp <- as_Spatial(chas_sf)
+chas_spatialpoint <- as(chas_sp, "SpatialPoints")
+
+# MP14 Subzone Data
+mpsz_sf <- st_read(dsn='data', layer='MP14_SUBZONE_WEB_PL')
+mpsz_sf <- mpsz_sf %>%
+    dplyr::select(SUBZONE_N, PLN_AREA_N, REGION_N, X_ADDR, Y_ADDR, SHAPE_Leng, SHAPE_Area, geometry)
+mpsz_sf <- st_transform(mpsz_sf, 3414)
+st_crs(mpsz_sf)
+
+eldercare_sf <- st_join(eldercare_sf, mpsz_sf, join=st_intersects)
+infocomm_sf <- st_join(infocomm_sf, mpsz_sf, join=st_intersects)
+chas_sf <- st_join(chas_sf, mpsz_sf, join=st_intersects)
+
+# HDB Data
+hdb <- read_csv('data/hdb_data.csv')
+hdb <- hdb %>% 
+  mutate(total_count=rowSums(.[2:11])) %>%
+  dplyr::select(Postcode, X, Y, Latitude, Longitude, total_count)
+hdb$Postcode <- as.character(hdb$Postcode)
+hdb_sf <- st_as_sf(hdb, coords=c('X', 'Y'), crs='EPSG:3414')
+
+# SG Coastal Outline
+sg <- readOGR(dsn = "data", layer="CostalOutline")
+sg_spatialpoint <- as(sg, "SpatialPolygons")
+
+# Compute elderly_density in mpsz
+mpsz_sf <- left_join(mpsz_sf, popdata2019, by=c('PLN_AREA_N' = 'planning_area', 'SUBZONE_N' = 'subzone'))
+mpsz_sf <- mpsz_sf %>%
+  dplyr::select(SUBZONE_N, PLN_AREA_N, REGION_N, elderly_count, total_count, geometry) %>%
+  mutate(elderly_proportion = elderly_count / total_count) %>%
+  mutate_if(is.numeric, ~replace(., is.nan(.), 0))
+mpsz_sp <- as_Spatial(mpsz_sf)
+mpsz_spatialpoint <- as(mpsz_sp, "SpatialPolygons")
+
+# Add count of facilities per subzone  into mpsz_demand
+mpsz_demand <- mpsz_sf
+mpsz_demand$`chas_count` <- lengths(st_intersects(mpsz_sf,chas_sf))
+mpsz_demand$`eldercare_count` <- lengths(st_intersects(mpsz_sf,eldercare_sf))
+mpsz_demand$`infocomm_count` <- lengths(st_intersects(mpsz_sf,infocomm_sf))
+
+# Join HDB with MP14 Data
+hdb_mpsz <- st_join(mpsz_sf, hdb_sf, join=st_intersects) %>%
+  dplyr::select(SUBZONE_N, PLN_AREA_N, REGION_N, elderly_proportion, Postcode, total_count.y, geometry) %>%
+  rename(resident_count = total_count.y) %>%
+  mutate(elderly_count = resident_count * elderly_proportion) %>%
+  mutate_if(is.numeric, ~replace(., is.na(.), 0))
+
+#Finding area of each subzone
+mpsz_demand$Area <- mpsz_demand %>%
+    st_area()
+
+#Calculating density of Chas, Eldercare, Infocomm and Elderly Pop
+mpsz_demand <- mpsz_demand %>%
+    mutate(`Elderly_Density` = (`elderly_count`/ Area) * 1000000) %>%
+    mutate(`Chas_Density` = `elderly_count` / `chas_count`) %>%
+    mutate(`Eldercare_Density` = `elderly_count` / `eldercare_count`) %>%
+    mutate(`Infocomm_Density` = `elderly_count` / `infocomm_count`)
+
+#Converting mpsz_demand to SP object
+mpsz_demand_sp <- as_Spatial(mpsz_demand)
+mpsz_demand_spatialpoint <- as(mpsz_demand_sp, "SpatialPolygons")
+
+#reading OSM 
+sg_osm <- read_osm(mpsz_spatialpoint, ext=1.3)
+
+#Extracting unique planning areas
+uniqPlanningAreas <- mpsz_demand[2]
+uniqPlanningAreas <- st_set_geometry(uniqPlanningAreas, NULL)
+uniqPlanningAreas <- unique(uniqPlanningAreas)
+
+```
+# Quadrat Test
+### CHAS Clinics
+```{r}
+owin <- as(sg, "owin")
+spatialpoint <- as(sg, "SpatialPolygons")
+chas_ppp <- as(chas_spatialpoint, "ppp")
+chas_ppp_jit <- rjitter(chas_ppp, retry=TRUE, nsim=1, drop=TRUE)
+ppp <- chas_ppp_jit[owin]  
+ppp.km <- rescale(ppp, 1000, "km")
+qt <- quadrat.test(ppp.km, nx=20, ny=15)
+qt
+```
+
+```{r}
+plot(ppp.km)
+plot(qt, add=TRUE, cex=.1)
+```
+
+```{r}
+quadrat.test(ppp.km, nx=20, ny=15, method='M', nsim=2999)
+```
+
+
+### Eldercare
+```{r}
+owin <- as(sg, "owin")
+spatialpoint <- as(sg, "SpatialPolygons")
+eldercare_ppp <- as(eldercare_spatialpoint, "ppp")
+eldercare_ppp_jit <- rjitter(eldercare_ppp, retry=TRUE, nsim=1, drop=TRUE)
+ppp <- eldercare_ppp_jit[owin]  
+ppp.km <- rescale(ppp, 1000, "km")
+qt <- quadrat.test(ppp.km, nx=20, ny=15)
+qt
+```
+
+```{r}
+plot(ppp.km)
+plot(qt, add=TRUE, cex=.1)
+```
+
+```{r}
+quadrat.test(ppp.km, nx=20, ny=15, method='M', nsim=2999)
+```
+
+### Silver Infocomm Junctions 
+```{r}
+owin <- as(sg, "owin")
+spatialpoint <- as(sg, "SpatialPolygons")
+infocomm_ppp <- as(infocomm_spatialpoint, "ppp")
+infocomm_ppp_jit <- rjitter(infocomm_ppp, retry=TRUE, nsim=1, drop=TRUE)
+ppp <- infocomm_ppp_jit[owin]  
+ppp.km <- rescale(ppp, 1000, "km")
+qt <- quadrat.test(ppp.km, nx=20, ny=15)
+qt
+```
+
+```{r}
+plot(ppp.km)
+plot(qt, add=TRUE, cex=.1)
+```
+
+```{r}
+quadrat.test(ppp.km, nx=20, ny=15, method='M', nsim=2999)
+```
+
+
+# Gi* Statistics - Hotspot & Coldspot Analysis 
+### CHAS
+```{r}
+#coverting to sp polygons
+mpsz_demand_selected_sp <- as_Spatial(mpsz_demand)
+
+coords <- coordinates(mpsz_demand_selected_sp)
+k1 <- knn2nb(knearneigh(coords))
+k1dists <- unlist(nbdists(k1, coords, longlat=FALSE))
+maxdist <- ceiling(max(k1dists))
+
+#Calculating d fixed-distance weight matrix
+dnb <- dnearneigh(coordinates(mpsz_demand_selected_sp), 0, maxdist, longlat = FALSE)
+
+#plot(mpsz_demand_selected_sp, border = 'lightgrey')
+#plot(dnb, coordinates(mpsz_demand_selected_sp), add=TRUE, col='red')
+
+dnb_lw <- nb2listw(dnb, style = 'B')
+
+fips <- order(mpsz_demand_selected_sp$SUBZONE_N)
+gi.fixed <- localG(mpsz_demand_selected_sp$chas_count, dnb_lw)
+gi.fixed
+
+chas.gi <- cbind(mpsz_demand_selected_sp, as.matrix(gi.fixed))
+names(chas.gi)[15] <- "gstat"
+#colnames(chas.gi)[23] <- "gstat"
+
+tm_shape(chas.gi) +
+  tm_fill(col = "gstat", 
+          style = "pretty",
+          palette="-RdBu",
+          title = "local Gi") +
+  tm_borders(alpha = 0.5)
+```
+
+### Silver Infocomm
+```{r}
+#coverting to sp polygons
+mpsz_demand_selected_sp <- as_Spatial(mpsz_demand)
+
+coords <- coordinates(mpsz_demand_selected_sp)
+k1 <- knn2nb(knearneigh(coords))
+k1dists <- unlist(nbdists(k1, coords, longlat=FALSE))
+maxdist <- ceiling(max(k1dists))
+
+#Calculating d fixed-distance weight matrix
+dnb <- dnearneigh(coordinates(mpsz_demand_selected_sp), 0, maxdist, longlat = FALSE)
+
+#plot(mpsz_demand_selected_sp, border = 'lightgrey')
+#plot(dnb, coordinates(mpsz_demand_selected_sp), add=TRUE, col='red')
+
+dnb_lw <- nb2listw(dnb, style = 'B')
+
+fips <- order(mpsz_demand_selected_sp$SUBZONE_N)
+gi.fixed <- localG(mpsz_demand_selected_sp$infocomm_count, dnb_lw)
+gi.fixed
+
+infocomm.gi <- cbind(mpsz_demand_selected_sp, as.matrix(gi.fixed))
+names(infocomm.gi)[15] <- "gstat"
+#colnames(infocomm.gi)[23] <- "gstat"
+
+tm_shape(infocomm.gi) +
+  tm_fill(col = "gstat", 
+          style = "pretty",
+          palette="-RdBu",
+          title = "local Gi") +
+  tm_borders(alpha = 0.5)
+```
+
+### Eldercare
+```{r}
+#coverting to sp polygons
+mpsz_demand_selected_sp <- as_Spatial(mpsz_demand)
+
+coords <- coordinates(mpsz_demand_selected_sp)
+k1 <- knn2nb(knearneigh(coords))
+k1dists <- unlist(nbdists(k1, coords, longlat=FALSE))
+maxdist <- ceiling(max(k1dists))
+
+#Calculating d fixed-distance weight matrix
+dnb <- dnearneigh(coordinates(mpsz_demand_selected_sp), 0, maxdist, longlat = FALSE)
+
+#plot(mpsz_demand_selected_sp, border = 'lightgrey')
+#plot(dnb, coordinates(mpsz_demand_selected_sp), add=TRUE, col='red')
+
+dnb_lw <- nb2listw(dnb, style = 'B')
+
+fips <- order(mpsz_demand_selected_sp$SUBZONE_N)
+gi.fixed <- localG(mpsz_demand_selected_sp$eldercare_count, dnb_lw)
+gi.fixed
+
+eldercare.gi <- cbind(mpsz_demand_selected_sp, as.matrix(gi.fixed))
+names(eldercare.gi)[15] <- "gstat"
+#colnames(eldercare.gi)[23] <- "gstat"
+
+tm_shape(eldercare.gi) +
+  tm_fill(col = "gstat", 
+          style = "pretty",
+          palette="-RdBu",
+          title = "local Gi") +
+  tm_borders(alpha = 0.5)
+```
+
+
+# Kernel Density Maps
+### CHAS Clinics
+```{r}
+bindingbox <- st_bbox(sg)
+      
+owin <- as(sg, "owin")
+spatialpoint <- as(sg, "SpatialPolygons")
+chas_ppp <- as(chas_spatialpoint, "ppp")
+chas_ppp_jit <- rjitter(chas_ppp, retry=TRUE, nsim=1, drop=TRUE)
+
+ppp_chas <- chas_ppp_jit[owin]
+
+selected_osm <- read_osm(bindingbox, ext=1.1)
+
+msgtext <- "KDE Map"
+
+ppp.km <- rescale(ppp_chas, 1000, "km")
+
+kde <- density(ppp.km, sigma=bw.diggle, edge=TRUE, kernel="gaussian")
+
+gridded_kde_bw <- as.SpatialGridDataFrame.im(kde)
+
+kde_bw_raster <- raster(gridded_kde_bw)
+
+projection(kde_bw_raster) <- crs("+init=EPSG:3414 +datum=WGS84 +units=km")
+
+# Plot kernel density map on openstreetmap
+tm_shape(selected_osm)+ 
+  tm_rgb()+
+  tm_shape(kde_bw_raster) + 
+  tm_raster("v", alpha=0.5,  
+            palette = "YlOrRd")
+      
+```
+
+
+### Silver Infocomm Junctions
+```{r}
+
+bindingbox <- st_bbox(sg)
+      
+owin <- as(sg, "owin")
+spatialpoint <- as(sg, "SpatialPolygons")
+infocomm_ppp <- as(infocomm_spatialpoint, "ppp")
+infocomm_ppp_jit <- rjitter(infocomm_ppp, retry=TRUE, nsim=1, drop=TRUE)
+
+ppp_infocomm <- infocomm_ppp_jit[owin]
+
+selected_osm <- read_osm(bindingbox, ext=1.1)
+
+msgtext <- "KDE Map"
+
+ppp.km <- rescale(ppp_infocomm, 1000, "km")
+
+kde <- density(ppp.km, sigma=bw.diggle, edge=TRUE, kernel="gaussian")
+
+gridded_kde_bw <- as.SpatialGridDataFrame.im(kde)
+
+kde_bw_raster <- raster(gridded_kde_bw)
+
+projection(kde_bw_raster) <- crs("+init=EPSG:3414 +datum=WGS84 +units=km")
+
+# Plot kernel density map on openstreetmap
+tm_shape(selected_osm)+ 
+  tm_rgb()+
+  tm_shape(kde_bw_raster) + 
+  tm_raster("v", alpha=0.5,  
+            palette = "YlOrRd")
+      
+```
+
+
+### Eldercare Services
+```{r}
+bindingbox <- st_bbox(sg)
+      
+owin <- as(sg, "owin")
+spatialpoint <- as(sg, "SpatialPolygons")
+eldercare_ppp <- as(eldercare_spatialpoint, "ppp")
+eldercare_ppp_jit <- rjitter(eldercare_ppp, retry=TRUE, nsim=1, drop=TRUE)
+
+ppp_eldercare <- eldercare_ppp_jit[owin]
+
+selected_osm <- read_osm(bindingbox, ext=1.1)
+
+msgtext <- "KDE Map"
+
+ppp.km <- rescale(ppp_eldercare, 1000, "km")
+
+kde <- density(ppp.km, sigma=bw.diggle, edge=TRUE, kernel="gaussian")
+
+gridded_kde_bw <- as.SpatialGridDataFrame.im(kde)
+
+kde_bw_raster <- raster(gridded_kde_bw)
+
+projection(kde_bw_raster) <- crs("+init=EPSG:3414 +datum=WGS84 +units=km")
+
+# Plot kernel density map on openstreetmap
+tm_shape(selected_osm)+ 
+  tm_rgb()+
+  tm_shape(kde_bw_raster) + 
+  tm_raster("v", alpha=0.5,  
+            palette = "YlOrRd")
+      
+```
