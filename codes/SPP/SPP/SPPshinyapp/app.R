@@ -389,27 +389,32 @@ server <- function(input, output) {
     output$boxplot <- renderPlotly({
       if (input$boxeda == 'Elderly Density'){
         selected='Elderly_Density'
-        boxplot <- plot_ly(mpsz_demand, x=selected, type='box')
+        boxplot <- plot_ly(mpsz_demand, x=selected, type='box', mode='markers')
         boxplot <- boxplot %>%
           layout(title='Disribution of Elderly Density', 
-                 yaxis = list(title='Elderly Density'))
+                 yaxis = list(title='Elderly Density')) %>%
+          add_trace(hovertemplate = 'Elderly Density: %{x}', 
+                    showlegend=FALSE)
       }
       else if (input$boxeda == 'Elderly Count'){
         selected='elderly_count'
-        boxplot <- plot_ly(mpsz_demand, x=selected, type='box')
+        boxplot <- plot_ly(mpsz_demand, x=selected, type='box', mode='markers')
         boxplot <- boxplot %>%
           layout(title='Disribution of Elderly Count', 
-                 yaxis = list(title='Elderly Count'))
+                 yaxis = list(title='Elderly Count')) %>%
+          add_trace(hovertemplate = 'Elderly Count: %{x}', 
+                    showlegend=FALSE)
       }
       else {
         selected='elderly_proportion'
-        boxplot <- plot_ly(mpsz_demand, x=selected, type='box')
+        boxplot <- plot_ly(mpsz_demand, x=selected, type='box', mode='markers')
         boxplot <- boxplot %>%
           layout(title='Disribution of Elderly Proportion', 
-                 yaxis = list(title='Elderly Proportion'))
+                 yaxis = list(title='Elderly Proportion')) %>%
+          add_trace(hovertemplate = 'Elderly Proportion: %{x}', 
+                    showlegend=FALSE)
       }
-      boxplot %>%
-        hide_legend() 
+      
       boxplot
     })
     
