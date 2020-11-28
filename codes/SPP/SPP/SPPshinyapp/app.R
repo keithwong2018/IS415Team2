@@ -330,7 +330,7 @@ ui <- fluidPage(theme=shinytheme('spacelab'),
                                                                     selected='Eldercare Services'),
                                                         selectInput(inputId='accmeasure', 
                                                                     label='Accessibility Measure', 
-                                                                    choices = c('SAM', '2SFCA', 'KD2SFCA', 'Hansen'), 
+                                                                    choices = c('SAM', 'Hansen'), 
                                                                     selected='Hansen'), 
                                                         sliderInput(inputId='capacity', 
                                                                     label='Capacity', 
@@ -392,28 +392,24 @@ server <- function(input, output) {
         boxplot <- plot_ly(mpsz_demand, x=selected, type='box', mode='markers')
         boxplot <- boxplot %>%
           layout(title='Disribution of Elderly Density', 
-                 yaxis = list(title='Elderly Density')) %>%
-          add_trace(hovertemplate = 'Elderly Density: %{x}', 
-                    showlegend=FALSE)
+                 yaxis = list(title='Elderly Density')) 
       }
       else if (input$boxeda == 'Elderly Count'){
         selected='elderly_count'
         boxplot <- plot_ly(mpsz_demand, x=selected, type='box', mode='markers')
         boxplot <- boxplot %>%
           layout(title='Disribution of Elderly Count', 
-                 yaxis = list(title='Elderly Count')) %>%
-          add_trace(hovertemplate = 'Elderly Count: %{x}', 
-                    showlegend=FALSE)
+                 yaxis = list(title='Elderly Count')) 
       }
       else {
         selected='elderly_proportion'
         boxplot <- plot_ly(mpsz_demand, x=selected, type='box', mode='markers')
         boxplot <- boxplot %>%
           layout(title='Disribution of Elderly Proportion', 
-                 yaxis = list(title='Elderly Proportion')) %>%
-          add_trace(hovertemplate = 'Elderly Proportion: %{x}', 
-                    showlegend=FALSE)
+                 yaxis = list(title='Elderly Proportion')) 
       }
+      boxplot %>%
+        add_trace(showlegend=FALSE)
       
       boxplot
     })
