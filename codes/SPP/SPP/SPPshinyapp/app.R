@@ -296,18 +296,7 @@ ui <- fluidPage(theme=shinytheme('spacelab'),
                                                         ), 
                                            mainPanel(width=9, fluid=TRUE, 
                                                      tabsetPanel(
-                                                       id='SPPAset', 
-                                                       tabPanel('Overview', 
-                                                                fluidRow(
-                                                                  column(5.5, plotOutput('quadplotsg') %>% withSpinner(color='#0dc5c1'))
-                                                                ), 
-                                                                fluidRow(
-                                                                  column(5.5, plotOutput('kdeplotsg') %>% withSpinner(color='#0dc5c1'))
-                                                                ), 
-                                                                fluidRow(
-                                                                  column(5.5, plotOutput('hotspotsg') %>% withSpinner(color='#0dc5c1'))
-                                                                )
-                                                        ),
+                                                       id='SPPAset',
                                                        tabPanel('Quadrat Analysis', 
                                                                 column(3, plotOutput('quadploteldercare') %>% withSpinner(color='#0dc5c1')), 
                                                                 column(3, plotOutput('quadplotsilverinfo') %>% withSpinner(color='#0dc5c1')),
@@ -358,17 +347,10 @@ ui <- fluidPage(theme=shinytheme('spacelab'),
                                                         ), 
                                            mainPanel(width=9, fluid=TRUE, 
                                                      id='accessibility', 
-                                                     tabsetPanel(
-                                                       id='accessibility', 
-                                                       tabPanel('Accessilibility Maps', 
-                                                                fluidRow(column(9, tmapOutput("accsubzoneplot") %>% withSpinner(color="#0dc5c1"))), 
-                                                                fluidRow(column(9, tmapOutput("acchdbplot") %>% withSpinner(color="#0dc5c1")))
-                                                                ), 
-                                                       tabPanel('Statistics', 
-                                                                fluidRow(column(9, plotOutput ("cda") %>% withSpinner(color='#0dc5c1')))
-                                                                )
+                                                     fluidRow(column(9, tmapOutput("accsubzoneplot") %>% withSpinner(color="#0dc5c1"))), 
+                                                     fluidRow(column(9, tmapOutput("acchdbplot") %>% withSpinner(color="#0dc5c1")))
                                                      )
-                                                     )
+                                                     
                                            )
                              )
                     )

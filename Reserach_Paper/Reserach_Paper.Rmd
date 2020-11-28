@@ -1,0 +1,116 @@
+---
+title: Silver is the New Black
+subtitle: A Data-Driven Approach to Geographical Accessibility of Elderly-Related Facilities
+author:
+  - name: Lee Xuan Hui 
+    email: xuanhui.lee.2018@sis.smu.edu.sg
+    affiliation: Singapore Management University
+  - name: Keith Wong Wei Kit
+    email: keith.wong.2018@sis.smu.edu.sg
+    affiliation: Singapore Management University
+abstract: |
+  The declining birth rate and increasing life expectancy has resulted in the greying of population all around the world. Such demographic shifts will trigger changes in the labour market and world economy, and force reviews on health care and elderly support systems globally. As Singapore is one of the fastest ageing populations in Asia, with one in four Singaporeans aged 65 and above by 2030 (Ko, 2019), Singapore must be prepared to face this silvering challenge by scrutinising every single aspect of its economy from its policies to the intergenerational dynamics. Even though Singapore has spent countless research efforts to tackle this challenge, there is little evidence of spatial perspectives on the geographical accessibility on essential facilities for the elderly. 
+
+  This paper analyses the geographical accessibility of three different facilities for the elderly, namely Eldercare Centres, Silver Infocomm Junctions and clinics under the Community Health Assist Scheme (CHAS). The findings are discussed along with suggestions for urban planners and policy makers, to ensure that these essential facilities are located close to, or accessible to the elderly population, to further develop on Singapore’s existing support system for the silver generation. 
+bibliography: sigproc.bib
+csl: acm-sig-proceedings.csl
+output: 
+  pdf_document: rticles::acm_article
+  fig_caption: true 
+---
+
+# Introduction 
+The declining birth rate and increasing life expectancy has resulted in the greying of population all around the world. Such demographic shifts will trigger changes in the labour market and world economy, and force reviews on health care and elderly support systems globally. 
+
+As Singapore is one of the fastest ageing populations in Asia, with one in four Singaporeans aged 65 and above by 2030 (Ko, 2019), it is on the cusp of an extreme demographic shift which will put immense pressure on Singapore, as a shrinking workforce struggles to support a growing ageing population. Singapore must be prepared to face this silvering challenge by evaluating every single aspect of its economy from its policies to the intergenerational dynamics. 
+
+Issues related to population ageing are mutli-dimensional, which requires cooperation and joint efforts between different ministries and government agencies. A number of facilities and amenities have since been set up to ensure that the elderly population are well cared for and these senior citizens are able to remain independent in their silver years. For this study, we will be analysing the geographical aspect of some of these services, namely Eldercare Services, Silver Infocomm Junctions and clinics under the Community Health Assist Scheme. 
+
+Eldercare Services are community-based services for the elderly for medical help or everyday care. These services include Home Care, which provides care at the recipient’s home; Day Care, which individuals can go to in the day and return home in the evening; and Stay-In Care, for individuals who require round-the-clock. 
+
+Silver Infocomm Junctions (SIJs) are learning hubs conveniently located around Singapore for the elderly to kickstart their digital learning journey (Silver Infocomm Junctions, 2019). SIJs offer various courses that allow the elderly to pick up new skills and receive basic digital training to remain relevant as Singapore transitions into a smart nation.
+
+Community Health Assist Scheme (CHAS) allows senior citizens who are part of the Pioneer Generation and Merdeka Generation to enjoy subsidised medical and dental services at participating clinics. This ensures that the elderly have access to affordable, quality healthcare. 
+
+Availability and accessibility to such services are important to ensure that the elderly population of Singapore are able to receive essential care and remain independent. With increasing demand of such services due to the rise in elderly numbers, it would be beneficial to conduct a study to examine how far are the services meeting the changing demand, and how accessible these services are for the elderly population in Singapore. 
+
+This study aims to assess the geographical accessibility of Eldercare Services, SIJs and CHAS clinics for the elderly living in HDB flats in Singapore. Silver is the New Black is a client-side dynamic and interactive geo-visual analytics dashboard. The aim is to provide urban planners with an analytics tool to detect and identify planning areas and subzones with relatively lower accessibility to the above services, and to suggest possible locations for new facilities to be built. 
+
+## Outline of Paper
+This is a comprehensive report detailing our journey from analysing raw data to designing and implementing a web-enabled geo-visual analytics tool. There is a total of six sections in this study. Section 1 provides an overview of the problem and our motivation for solving it. This is followed by related works that we used as a guide for our research. Section 3 consists of detailed explanations of the research methodology used to solve the problem. Section 4 uncovers insights from our discovery, followed by a discussion based on the insights. The report concludes by looking into the future direction of the research. 
+
+# Motivation & Objectives
+Since its launch in 2013, Singapore’s Open Data initiative to promote transparency, participation and collaboration has been a massive step to achieving the Smart Nation vision (Oludumila, 2018). The data is gathered from over 70 public agencies and is available on data.gov.sg, which is a one-stop portal for all publicly available datasets (Data.gov.sg, n.d.). The primary motivation for our research is the general lack of integrated information and platforms on geographical visual analytics for facilities and amenities. Using data from various sources, we aim to offer a deeper insight into the geographical distribution of the elderly population and related amenities, and how accessible these amenities are for the elderly. Specifically, our application attempts to achieve the following objectives: 
+
+1. To study the geospatial distribution of Eldercare centres, Silver Infocomm Junctions & CHAS clinics with HDB blocks; 
+
+2. To create geographical visualisations that support both macro & micro views, on a national and planning area/subzone level; 
+
+3. To analyse geographical accessibility of the different facilities based on different capacities and threshold distances. 
+
+# Related Works
+While there has been countless research on geographical accessibility, we found that most research are done on primarily healthcare services that cater to the general population. In this section, we will explore some related works that serve as inspiration for this research. 
+
+## Spatial Analysis of Nursing Homes in Chile
+Like Singapore, Chile is also facing the problem of a rapidly ageing population and nursing homes have been the traditional alternative to deal with the increase in elderly population. The aim of this study is to identify the determinants of the geographical location of nursing homes in Chile at the municipality level, taking into account the geographical criteria for different types of nursing homes and possible spatial effects. The types of nursing homes are of for-profit, not-for-profit and publicly funded. 
+
+### Key Assumptions
+Based on the eligibility criteria for publicly funded nursing homes, the criteria for the for-profit and non-profit nursing homes are derived: 
+
+![](img/Chile_profit_eq.png)
+
+The control variables are the number of nursing homes (N), size of each nursing home (T), the price charged (P) and the location (L) of nursing homes. 
+
+The objective of for-profit nursing homes is assumed to be profit-maximising and non-profit, to maximise social benefits. 
+
+### Data & Methods
+The datasets used include a list of nursing homes and relevant attributes, demographic and socio-economic information of municipalities and the geographical polygon data. 
+
+To reflect the different dimensions of the decision to open a new nursing home, new variables are derived. Coverage is defined as the percentage of elderly in nursing homes in each municipality, and Availability is defined as the number of nursing homes per 10 000 elderly in each municipality. Coverage is related to the number of elders having access to nursing homes in a municipality, while availability considers the different options in terms of types of nursing homes, prices and distances. 
+
+To decide where to open new nursing homes, one must consider the variation in variables and distribution of the elderly population across municipalities. 
+
+The global spatial autocorrelation measure Gi* is also used in this study to identify hot spots and cold spots, i.e. municipalities with high or low availability and coverage with respect to the global average. This method is useful in our analysis as we are also interested in the availability of facilities within the study area. 
+
+To identify the determinants of coverage and availability of nursing homes in the country, the geographical regression ordinary least squares (OLS) method is used. Using the demographic and socio-economic information, the values of coverage and availability are estimated. 
+
+### Key Findings 1 
+Fig 1 shows that spatial distribution of nursing homes and other variables of interest by municipality. Map A (Fig 1) shows that the nursing homes are clustered in central Chile, which also has the most expensive facilities. The elderly population is also clustered in that area as well (Fig 2). 
+
+![Figure 1](img/fig1.png)
+
+# Conclusion
+Duis nec purus sed neque porttitor tincidunt vitae quis augue. Donec porttitor aliquam ante, nec convallis nisl ornare eu. Morbi ut purus et justo commodo dignissim et nec nisl. Donec imperdiet tellus dolor, vel dignissim risus venenatis eu. Aliquam tempor imperdiet massa, nec fermentum tellus sollicitudin vulputate. Integer posuere porttitor pharetra. Praesent vehicula elementum diam a suscipit. Morbi viverra velit eget placerat pellentesque. Nunc congue augue non nisi ultrices tempor.
+
+# References
+
+---
+references:
+- id: meier2012
+  title: Professinal Android 4 Application Development
+  author: 
+  - family: Meier
+    given: Reto
+  type: book
+  publisher: John Wiley & Sons, Inc.
+  issued:
+    year: 2012
+    month: 5
+- id: fenner2012a
+  title: One-click science marketing
+  author:
+  - family: Fenner
+    given: Martin
+  container-title: Nature Materials
+  volume: 11
+  URL: 'https://doi.org/10.1038/nmat3283'
+  DOI: 10.1038/nmat3283
+  issue: 4
+  publisher: Nature Publishing Group
+  page: 261-263
+  type: article-journal
+  issued:
+    year: 2012
+    month: 3
+...
+
