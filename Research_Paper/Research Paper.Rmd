@@ -10,10 +10,10 @@ author:
 subtitle: A Data-Driven Approach to Geographical Accessibility of Elderly-Related
   Facilities
 output:
-  pdf_document: rticles::acm_article
+  word_document: default
   fig_caption: yes
   extra_dependencies: float
-  word_document: default
+  pdf_document: rticles::acm_article
 keywords: Geographical accessibility, elderly, health care, Singapore, SAM, eldercare,
   CHAS, Silver Infocomm, facilities, amenities, outlier analysis
 geometry: margin=1in
