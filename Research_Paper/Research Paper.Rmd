@@ -1,31 +1,43 @@
 ---
-title: Silver is the New Black
-subtitle: A Data-Driven Approach to Geographical Accessibility of Elderly-Related Facilities
+title: "Silver is the New Black"
 author:
-  - name: Lee Xuan Hui 
-    email: xuanhui.lee.2018@sis.smu.edu.sg
-    affiliation: Singapore Management University
-  - name: Keith Wong Wei Kit
-    email: keith.wong.2018@sis.smu.edu.sg
-    affiliation: Singapore Management University
-abstract: |
-  The declining birth rate and increasing life expectancy has resulted in the greying of population all around the world. Such demographic shifts will trigger changes in the labour market and world economy, and force reviews on health care and elderly support systems globally. As Singapore is one of the fastest ageing populations in Asia, with one in four Singaporeans aged 65 and above by 2030 (Ko, 2019), Singapore must be prepared to face this silvering challenge by scrutinising every single aspect of its economy from its policies to the intergenerational dynamics. Even though Singapore has spent countless research efforts to tackle this challenge, there is little evidence of spatial perspectives on the geographical accessibility on essential facilities for the elderly. 
-  This paper analyses the geographical accessibility of three different facilities for the elderly, namely Eldercare Centres, Silver Infocomm Junctions and clinics under the Community Health Assist Scheme (CHAS). The findings are discussed along with suggestions for urban planners and policy makers, to ensure that these essential facilities are located close to, or accessible to the elderly population, to further develop on Singapore’s existing support system for the silver generation. 
-  
-keywords: Geographical accessibility, elderly, health care, Singapore, SAM, eldercare, CHAS, Silver Infocomm, facilities, amenities, outlier analysis
-
+- name: Lee Xuan Hui
+  email: xuanhui.lee.2018@sis.smu.edu.sg
+  affiliation: Singapore Management University
+- name: Keith Wong Wei Kit
+  email: keith.wong.2018@sis.smu.edu.sg
+  affiliation: Singapore Management University
+subtitle: A Data-Driven Approach to Geographical Accessibility of Elderly-Related
+  Facilities
+output:
+  word_document: default
+  fig_caption: yes
+  extra_dependencies: float
+  pdf_document: rticles::acm_article
+keywords: Geographical accessibility, elderly, health care, Singapore, SAM, eldercare,
+  CHAS, Silver Infocomm, facilities, amenities, outlier analysis
 geometry: margin=1in
 fontsize: 11pt
-
-output: 
-  pdf_document: 
-    - rticles::acm_article
-  fig_caption: true 
-  extra_dependencies: ['float']
+abstract: "The declining birth rate and increasing life expectancy has resulted in
+  the greying of population all around the world. Such demographic shifts will trigger
+  changes in the labour market and world economy, and force reviews on health care
+  and elderly support systems globally. As Singapore is one of the fastest ageing
+  populations in Asia, with one in four Singaporeans aged 65 and above by 2030 (Ko,
+  2019), Singapore must be prepared to face this silvering challenge by scrutinising
+  every single aspect of its economy from its policies to the intergenerational dynamics.
+  Even though Singapore has spent countless research efforts to tackle this challenge,
+  there is little evidence of spatial perspectives on the geographical accessibility
+  on essential facilities for the elderly. \nThis paper analyses the geographical
+  accessibility of three different facilities for the elderly, namely Eldercare Centres,
+  Silver Infocomm Junctions and clinics under the Community Health Assist Scheme (CHAS).
+  The findings are discussed along with suggestions for urban planners and policy
+  makers, to ensure that these essential facilities are located close to, or accessible
+  to the elderly population, to further develop on Singapore’s existing support system
+  for the silver generation. \n"
 bibliography: sigproc.bib
 csl: acm-sig-proceedings.csl
 ---
-```{r}
+```{r echo=FALSE}
 knitr::opts_chunk$set(fig.pos = "!H", out.extra = "")
 ```
 
