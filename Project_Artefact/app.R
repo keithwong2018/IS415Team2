@@ -7,14 +7,28 @@
 #    http://shiny.rstudio.com/
 #
 
-packages = c('rgdal', 'sf', 'tmap', 'tidyverse', 'sp', 'rgeos','maptools', 'raster', 'spatstat', 'tmaptools', 'spdep', 'OpenStreetMap', 'ggpubr', 'SpatialPosition', 'SpatialAcc', 'dplyr', 'shinycssloaders','plotly', 'shinythemes')
-for (p in packages){
-    if (!require(p, character.only = T)){
-        install.packages(p)
-    }
-    library(p, character.only = T)
-}
+rsconnect::deployApp('C:/Users/keith/Documents/GitHub/IS415Team2/Project_Artefact/app')
 
+library(rgdal)
+library(sf)
+library(tmap)
+library(tidyverse)
+library(rgeos)
+library(maptools)
+library(raster)
+library(spatstat)
+library(tmaptools)
+library(spdep)
+library(OpenStreetMap)
+library(ggpubr)
+library(SpatialPosition)
+library(SpatialAcc)
+library(dplyr)
+library(shinycssloaders)
+library(plotly)
+library(shinythemes)
+library(readr)
+library(leaflet.providers)
 
 # Population Data
 # columns = planning_area, subzone, elderly_count, total_count
@@ -261,14 +275,14 @@ ui <- fluidPage(theme=shinytheme('spacelab'),
                                                                  fluidRow(column(9, tmapOutput('sdplot'))), 
                                                                  fluidRow(), 
                                                                  fluidRow(
-                                                                   column(3, plotlyOutput('plotlyelder')), 
-                                                                   column(3, plotlyOutput('plotlyinfo')), 
-                                                                   column(3, plotlyOutput('plotlychas'))
+                                                                   column(3, plotOutput('edaHistElder')), 
+                                                                   column(3, plotOutput('edaHistInfo')), 
+                                                                   column(3, plotOutput('edaHistChas'))
                                                                  )
                                                         ), 
                                                         tabPanel('Outlier Analysis', 
                                                                  fluidRow(column(9, tmapOutput("boxmap"))), 
-                                                                 fluidRow(column(9, plotlyOutput('boxplot')))
+                                                                 fluidRow(column(9, plotOutput('boxplot')))
                                                                  )
                                                         
                                                       )
@@ -386,32 +400,41 @@ server <- function(input, output) {
     })
     
     # Box plots
-    output$boxplot <- renderPlotly({
+    output$boxplot <- renderPlot({
       if (input$boxeda == 'Elderly Density'){
         selected='Elderly_Density'
-        boxplot <- plot_ly(mpsz_demand, x=selected, type='box', mode='markers')
-        boxplot <- boxplot %>%
-          layout(title='Disribution of Elderly Density', 
-                 yaxis = list(title='Elderly Density')) 
+        boxplot(mpsz_demand$selected, 
+                main = 'Distribution of Elderly Density', 
+                xlab = 'Elderly Density', 
+                xlim = max(mpsz_demand$selected),
+                col = 'orange', 
+                border = 'brown', 
+                horizontal = TRUE, 
+                notch = TRUE)
       }
       else if (input$boxeda == 'Elderly Count'){
         selected='elderly_count'
-        boxplot <- plot_ly(mpsz_demand, x=selected, type='box', mode='markers')
-        boxplot <- boxplot %>%
-          layout(title='Disribution of Elderly Count', 
-                 yaxis = list(title='Elderly Count')) 
+        boxplot(mpsz_demand$selected, 
+                main = 'Distribution of Elderly Count', 
+                xlab = 'Elderly Count', 
+                xlim = max(mpsz_demand$selected),
+                col = 'orange', 
+                border = 'brown', 
+                horizontal = TRUE, 
+                notch = TRUE)
       }
       else {
         selected='elderly_proportion'
-        boxplot <- plot_ly(mpsz_demand, x=selected, type='box', mode='markers')
-        boxplot <- boxplot %>%
-          layout(title='Disribution of Elderly Proportion', 
-                 yaxis = list(title='Elderly Proportion')) 
+        boxplot(mpsz_demand$selected, 
+                main = 'Distribution of Elderly Proportion', 
+                xlab = 'Elderly Proportion', 
+                xlim = 1,
+                col = 'orange', 
+                border = 'brown', 
+                horizontal = TRUE, 
+                notch = TRUE) 
       }
-      boxplot %>%
-        add_trace(showlegend=FALSE)
       
-      boxplot
     })
     
     
@@ -578,7 +601,7 @@ server <- function(input, output) {
         ggplot(data=mpsz_demand,
                aes(x= as.numeric(`Chas_Density`)))+
           geom_histogram(bins=20, 
-                         color="black", fill="light blue")+ 
+                         color="black", fill="red")+ 
           labs(x='Ratio of Elderly to No. of CHAS Clinics', 
                y='Count')
       }
@@ -591,7 +614,7 @@ server <- function(input, output) {
         ggplot(data=mpsz_demand, 
                aes(x= as.numeric(`Infocomm_Density`)))+
           geom_histogram(bins=20, 
-                         color="black", fill="light blue")+
+                         color="black", fill="green")+
           labs(x='Ratio of Elderly to No. of Silver Infocomm Junctions', 
                y='Count')
       }
@@ -602,7 +625,7 @@ server <- function(input, output) {
         ggplot(data=mpsz_demand, 
                aes(x= as.numeric(`Eldercare_Density`)))+
           geom_histogram(bins=20, 
-                         color="black", fill="light blue")+ 
+                         color="black", fill="blue")+ 
           labs(x='Ratio of Elderly to No. of Eldercare Centres', 
                y='Count')
       }
