@@ -1,0 +1,12 @@
+name: Team2
+title: Team2
+username:
+account: is415t2
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 3318320
+bundleId: 3918973
+url: https://is415t2.shinyapps.io/Team2/
+when: 1606654416.50571
+asMultiple: FALSE
+asStatic: FALSE

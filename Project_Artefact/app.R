@@ -7,9 +7,10 @@
 #    http://shiny.rstudio.com/
 #
 
-rsconnect::deployApp('C:/Users/keith/Documents/GitHub/IS415Team2/Project_Artefact/app')
+#rsconnect::deployApp('C:/Users/keith/Documents/GitHub/IS415Team2/Project_Artefact/app')
 
 library(rgdal)
+library(rgeos)
 library(sf)
 library(tmap)
 library(tidyverse)
@@ -28,7 +29,9 @@ library(shinycssloaders)
 library(plotly)
 library(shinythemes)
 library(readr)
-library(leaflet.providers)
+library(sp)
+library(PROJ)
+library(proj4)
 
 # Population Data
 # columns = planning_area, subzone, elderly_count, total_count
@@ -237,11 +240,7 @@ boxmap <- function(vnam,df,legtitle=NA,mtitle,mult=1.5){
 ui <- fluidPage(theme=shinytheme('spacelab'),
         
           # Navigation Bar
-          navbarPage("Silver is the New Black", fluid=TRUE, windowTitle='Silver is the New Black', selected='EDA', 
-                     
-                     tabPanel("Home", value='home', fluid=TRUE, icon=icon('home')
-                              ), 
-                     
+          navbarPage("Silver is the New Black", fluid=TRUE, windowTitle='Silver is the New Black', selected='eda', 
                      tabPanel("EDA", value='eda', fluid=TRUE, icon=icon('search'), 
                               sidebarLayout(position='left', fluid=TRUE, 
                                             sidebarPanel(width=3, fluid=TRUE, 
@@ -272,12 +271,12 @@ ui <- fluidPage(theme=shinytheme('spacelab'),
                                                       tabsetPanel(
                                                         id='EDAset', 
                                                         tabPanel('Distribution Analysis', 
-                                                                 fluidRow(column(9, tmapOutput('sdplot'))), 
+                                                                 fluidRow(column(9, tmapOutput('sdplot') %>% withSpinner(color='#0dc5c1'))), 
                                                                  fluidRow(), 
                                                                  fluidRow(
-                                                                   column(3, plotOutput('edaHistElder')), 
-                                                                   column(3, plotOutput('edaHistInfo')), 
-                                                                   column(3, plotOutput('edaHistChas'))
+                                                                   column(3, plotOutput('edaHistElder')%>% withSpinner(color='#0dc5c1')), 
+                                                                   column(3, plotOutput('edaHistInfo') %>% withSpinner(color='#0dc5c1')), 
+                                                                   column(3, plotOutput('edaHistChas') %>% withSpinner(color='#0dc5c1'))
                                                                  )
                                                         ), 
                                                         tabPanel('Outlier Analysis', 
@@ -582,7 +581,7 @@ server <- function(input, output) {
       kde <- density(ppp.km, sigma=bw.diggle, edge=TRUE, kernel="gaussian")
       gridded_kde_bw <- as.SpatialGridDataFrame.im(kde)
       kde_bw_raster <- raster(gridded_kde_bw)
-      projection(kde_bw_raster) <- crs("+init=EPSG:3414 +datum=WGS84 +units=km")
+      proj4string(kde_bw_raster) <- crs("+proj=tmerc +lat_0=1.366666666666667 +lon_0=103.8333333333333 +k=1 +x_0=28001.642 +y_0=38744.572 +ellps=WGS84 +units=km +no_defs")
       
       tm_shape(selected_osm)+ 
         tm_layout(legend.outside = TRUE, title="msg_text")+
@@ -685,7 +684,7 @@ server <- function(input, output) {
       
       kde_bw_raster <- raster(gridded_kde_bw)
       
-      projection(kde_bw_raster) <- crs("+init=EPSG:3414 +datum=WGS84 +units=km")
+      proj4string(kde_bw_raster) <- crs("+proj=tmerc +lat_0=1.366666666666667 +lon_0=103.8333333333333 +k=1 +x_0=28001.642 +y_0=38744.572 +ellps=WGS84 +units=km +no_defs")
       
       # Plot kernel density map on openstreetmap
       tm_shape(selected_osm)+ 
@@ -722,7 +721,7 @@ server <- function(input, output) {
       
       kde_bw_raster <- raster(gridded_kde_bw)
       
-      projection(kde_bw_raster) <- crs("+init=EPSG:3414 +datum=WGS84 +units=km")
+      proj4string(kde_bw_raster) <- crs("+proj=tmerc +lat_0=1.366666666666667 +lon_0=103.8333333333333 +k=1 +x_0=28001.642 +y_0=38744.572 +ellps=WGS84 +units=km +no_defs")
       
       # Plot kernel density map on openstreetmap
       tm_shape(selected_osm)+ 
@@ -760,7 +759,8 @@ server <- function(input, output) {
       
       kde_bw_raster <- raster(gridded_kde_bw)
       
-      projection(kde_bw_raster) <- crs("+init=EPSG:3414 +datum=WGS84 +units=km")
+      #proj4string(kde_bw_raster) <- CRS("+init=EPSG:3414 +datum=WGS84 +units=km")
+      proj4string(kde_bw_raster) <- crs("+proj=tmerc +lat_0=1.366666666666667 +lon_0=103.8333333333333 +k=1 +x_0=28001.642 +y_0=38744.572 +ellps=WGS84 +units=km +no_defs")
       
       # Plot kernel density map on openstreetmap
       tm_shape(selected_osm)+ 
@@ -1473,6 +1473,5 @@ server <- function(input, output) {
     
 }
 
-    
 # Run the application 
 shinyApp(ui = ui, server = server)
