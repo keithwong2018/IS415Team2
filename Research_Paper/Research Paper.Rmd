@@ -10,10 +10,10 @@ author:
 subtitle: A Data-Driven Approach to Geographical Accessibility of Elderly-Related
   Facilities
 output:
-  word_document: default
+  pdf_document: rticles::acm_article
   fig_caption: yes
   extra_dependencies: float
-  pdf_document: rticles::acm_article
+  word_document: default
 keywords: Geographical accessibility, elderly, health care, Singapore, SAM, eldercare,
   CHAS, Silver Infocomm, facilities, amenities, outlier analysis
 geometry: margin=1in
@@ -252,22 +252,22 @@ The data sets used in this study are provided by various government agencies. Th
 ## Data Sources
 
 ### HDB Locations
-This csv file comprises information on HDB locations and residents. This data set is then converted into a simple feature data frame using the coordinates for subsequent analysis. HDB locations are indicative for the location of the elderly, which represents the demand for amenities. 
+This csv file [@hdb] comprises information on HDB locations and residents. This data set is then converted into a simple feature data frame using the coordinates for subsequent analysis. HDB locations are indicative for the location of the elderly, which represents the demand for amenities. 
 
 ### MP14 Subzone Data
-This shapefile contains polygons that indicate subzone boundary. Subzones are divisions within a planning area. This file is crucial for our analysis as we combined this with other data sets to aggregate data by planning area & subzones. 
+This shapefile [@subzone] contains polygons that indicate subzone boundary. Subzones are divisions within a planning area. This file is crucial for our analysis as we combined this with other data sets to aggregate data by planning area & subzones. 
 
 ### Singapore Residents by Subzones & Type of Dwelling (2011 - 2019)
-This data set contains residential information such as age group, sex, resident count and year by planning area and subzone. For our analysis, we will be filtering this data to obtain all 2019 data. The data is then further wrangled to obtain relevant information such as the elderly count by planning area & subzone, total resident count by planning area & subzone, elderly proportion (elderly count / total count) and elderly density (elderly count / area). 
+This data set [@popdata] contains residential information such as age group, sex, resident count and year by planning area and subzone. For our analysis, we will be filtering this data to obtain all 2019 data. The data is then further wrangled to obtain relevant information such as the elderly count by planning area & subzone, total resident count by planning area & subzone, elderly proportion (elderly count / total count) and elderly density (elderly count / area). 
 
 ### Eldercare Services
-This KML file contains the location data of all Eldercare Services in Singapore, including names, addresses and coordinates. Then it is used to create a distance matrix for the geographical accessibility analysis. 
+This KML file [@eldercare] contains the location data of all Eldercare Services in Singapore, including names, addresses and coordinates. Then it is used to create a distance matrix for the geographical accessibility analysis. 
 
 ### Silver Infocomm Services 
-This shapefile contains the location data of all Silver Infocomm Junctions and Hotspots in Singapore, including names, addresses and coordinates It is also subsequently used to create a distance matrix for the geographical accessibility analysis. 
+This shapefile [@silver_info] contains the location data of all Silver Infocomm Junctions and Hotspots in Singapore, including names, addresses and coordinates It is also subsequently used to create a distance matrix for the geographical accessibility analysis. 
 
 ### CHAS Clinics
-This shapefile contains the location data of all General Practitioners (GPs) and dental clinics covered under the CHAS scheme, including names, addresses and coordinates It is also subsequently used to create a distance matrix for the geographical accessibility analysis. 
+This shapefile [@chas] contains the location data of all General Practitioners (GPs) and dental clinics covered under the CHAS scheme, including names, addresses and coordinates It is also subsequently used to create a distance matrix for the geographical accessibility analysis. 
 
 ## Data Preparation, Cleaning & Wrangling
 To obtain the relevant population data, we first had to filter the data by year 2019. Using the variables age group and resident count by planning area and subzone, combining with the MP14 Subzone Data and HDB data, we were able to derive the following variables: elderly proportion by subzone, elderly density by subzone and elderly count by HDB block. 
