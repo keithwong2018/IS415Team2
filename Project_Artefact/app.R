@@ -281,8 +281,7 @@ ui <- fluidPage(theme=shinytheme('spacelab'),
                                                                  )
                                                         ), 
                                                         tabPanel('Outlier Analysis', 
-                                                                 fluidRow(column(9, tmapOutput("boxmap"))), 
-                                                                 fluidRow(column(9, plotOutput('boxplot')))
+                                                                 fluidRow(column(9, tmapOutput("boxmap")))
                                                                  )
                                                         
                                                       )
@@ -397,44 +396,6 @@ server <- function(input, output) {
           selected = 'elderly_proportion'
           boxmap(selected, mpsz_demand, mtitle='Elderly Distribution by Proportion')
         }
-    })
-    
-    # Box plots
-    output$boxplot <- renderPlot({
-      if (input$boxeda == 'Elderly Density'){
-        selected='Elderly_Density'
-        boxplot(mpsz_demand$selected, 
-                main = 'Distribution of Elderly Density', 
-                xlab = 'Elderly Density', 
-                xlim = max(mpsz_demand$selected),
-                col = 'orange', 
-                border = 'brown', 
-                horizontal = TRUE, 
-                notch = TRUE)
-      }
-      else if (input$boxeda == 'Elderly Count'){
-        selected='elderly_count'
-        boxplot(mpsz_demand$selected, 
-                main = 'Distribution of Elderly Count', 
-                xlab = 'Elderly Count', 
-                xlim = max(mpsz_demand$selected),
-                col = 'orange', 
-                border = 'brown', 
-                horizontal = TRUE, 
-                notch = TRUE)
-      }
-      else {
-        selected='elderly_proportion'
-        boxplot(mpsz_demand$selected, 
-                main = 'Distribution of Elderly Proportion', 
-                xlab = 'Elderly Proportion', 
-                xlim = 1,
-                col = 'orange', 
-                border = 'brown', 
-                horizontal = TRUE, 
-                notch = TRUE) 
-      }
-      
     })
     
     
@@ -555,47 +516,6 @@ server <- function(input, output) {
     })
     
     # Histograms
-    output$plotlychas <- renderPlotly({
-      if("CHAS Clinics" %in% input$cb_svc){
-        chasplot <- plot_ly(x = mpsz_demand$`Chas_Density`, type = "histogram", fill="red")
-        chasplot <- chasplot %>% layout(title = 'Demand/Supply of CHAS Clinics',
-                                        xaxis = list(title = 'Ratio of Eldertly to CHAS Clinics',
-                                                     zeroline = TRUE,
-                                                     range = c(0, 3500)),
-                                        yaxis = list(title = 'Count',
-                                                     range = c(0,50)))
-        chasplot
-      }
-    })
-    
-    output$plotlyinfo <- renderPlotly({
-      if("Silver infocomm" %in% input$cb_svc){
-        infoplot <- plot_ly(x = mpsz_demand$`Infocomm_Density`, type = "histogram", fill="green")
-        infoplot <- infoplot %>% layout(title = 'Demand/Supply of Silver Infocomm Junctions',
-                                        xaxis = list(title = 'Ratio of Elderly to Silver Infocomm Junctions',
-                                                     zeroline = TRUE,
-                                                     range = c(0, 11000)),
-                                        yaxis = list(title = 'Count',
-                                                     range = c(0,12)))
-        infoplot
-      }
-    })
-    
-    output$plotlyelder <- renderPlotly({
-      if("Eldercare Centres" %in% input$cb_svc){
-        elderplot <- plot_ly(x = mpsz_demand$`Eldercare_Density`, type = "histogram", fill="blue")
-        elderplot <- elderplot %>% layout(title = 'Demand/Supply of Eldercare Services',
-                                          xaxis = list(title = 'Ratio of Elderly to Eldercare Services',
-                                                       zeroline = TRUE,
-                                                       range = c(0, 8000)),
-                                          yaxis = list(title = 'Count',
-                                                       range = c(0,10)))
-        elderplot
-      }
-    })
-    
-    
-    
     output$edaHistChas <- renderPlot({
       if("CHAS Clinics" %in% input$cb_svc){
         ggplot(data=mpsz_demand,
